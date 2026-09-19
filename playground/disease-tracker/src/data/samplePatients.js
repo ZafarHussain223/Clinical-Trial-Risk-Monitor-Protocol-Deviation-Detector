@@ -1,0 +1,136 @@
+/**
+ * Sample Patient Dataset
+ * Representative cases for all severity levels and disease categories
+ */
+
+import { createPatientRecord } from "./schema.js";
+
+export const SAMPLE_PATIENTS_RAW = [
+  // ── Critical / High Risk Cases ────────────────────────────────────────────
+  {
+    patientId: "PT-001",
+    age: 67, gender: "M", zipCode: "10001", region: "Manhattan North",
+    preExistingConditions: ["hypertension", "COPD"],
+    temperatureC: 39.8, bloodPressureSystolic: 88, bloodPressureDiastolic: 55,
+    spO2: 87, heartRate: 128,
+    onsetDate: "2025-01-10",
+    symptoms: ["high_fever_or_hypothermia", "shortness_of_breath", "rapid_heart_rate", "confusion", "clammy_skin"],
+    wbcCount: 14.5, cReactiveProtein: 32, viralLoad: null,
+    hbA1c: null, bloodGlucose: null, liverAlt: null, kidneyCreatinine: 1.8,
+    source: "ER_intake",
+  },
+  {
+    patientId: "PT-002",
+    age: 54, gender: "F", zipCode: "10001", region: "Manhattan North",
+    preExistingConditions: ["diabetes", "obesity"],
+    temperatureC: 39.4, bloodPressureSystolic: 110, bloodPressureDiastolic: 72,
+    spO2: 90, heartRate: 118,
+    onsetDate: "2025-01-11",
+    symptoms: ["fever", "dry_cough", "shortness_of_breath", "fatigue", "loss_of_taste"],
+    wbcCount: 3.8, cReactiveProtein: 18, viralLoad: 4500,
+    hbA1c: 8.2, bloodGlucose: 240, liverAlt: null, kidneyCreatinine: null,
+    source: "clinic_referral",
+  },
+  {
+    patientId: "PT-003",
+    age: 72, gender: "M", zipCode: "10002", region: "Manhattan South",
+    preExistingConditions: ["heart_failure", "CKD"],
+    temperatureC: 38.9, bloodPressureSystolic: 185, bloodPressureDiastolic: 100,
+    spO2: 91, heartRate: 105,
+    onsetDate: "2025-01-09",
+    symptoms: ["shortness_of_breath", "edema", "confusion", "fatigue", "decreased_urination"],
+    wbcCount: null, cReactiveProtein: null, viralLoad: null,
+    hbA1c: null, bloodGlucose: null, liverAlt: null, kidneyCreatinine: 2.4,
+    source: "hospital_transfer",
+  },
+
+  // ── Moderate Risk Cases ───────────────────────────────────────────────────
+  {
+    patientId: "PT-004",
+    age: 45, gender: "F", zipCode: "10003", region: "Brooklyn West",
+    preExistingConditions: ["prediabetes"],
+    temperatureC: 38.3, bloodPressureSystolic: 145, bloodPressureDiastolic: 92,
+    spO2: 95, heartRate: 96,
+    onsetDate: "2025-01-12",
+    symptoms: ["fever", "productive_cough", "chest_pain", "fatigue", "chills"],
+    wbcCount: 12.5, cReactiveProtein: 17, viralLoad: null,
+    hbA1c: 6.1, bloodGlucose: 118, liverAlt: null, kidneyCreatinine: null,
+    source: "urgent_care",
+  },
+  {
+    patientId: "PT-005",
+    age: 38, gender: "M", zipCode: "10003", region: "Brooklyn West",
+    preExistingConditions: [],
+    temperatureC: 38.6, bloodPressureSystolic: 125, bloodPressureDiastolic: 80,
+    spO2: 94, heartRate: 102,
+    onsetDate: "2025-01-13",
+    symptoms: ["fever", "dry_cough", "body_aches", "fatigue", "loss_of_smell"],
+    wbcCount: 3.6, cReactiveProtein: 12, viralLoad: 2200,
+    hbA1c: null, bloodGlucose: null, liverAlt: null, kidneyCreatinine: null,
+    source: "telehealth",
+  },
+  {
+    patientId: "PT-006",
+    age: 58, gender: "F", zipCode: "10004", region: "Queens",
+    preExistingConditions: ["non_alcoholic_fatty_liver"],
+    temperatureC: 37.4, bloodPressureSystolic: 130, bloodPressureDiastolic: 84,
+    spO2: 97, heartRate: 80,
+    onsetDate: "2025-01-10",
+    symptoms: ["jaundice", "abdominal_pain", "fatigue", "nausea", "dark_urine"],
+    wbcCount: null, cReactiveProtein: null, viralLoad: null,
+    hbA1c: null, bloodGlucose: null, liverAlt: 78, kidneyCreatinine: null,
+    source: "lab_referral",
+  },
+
+  // ── Low Risk / Mild Cases ─────────────────────────────────────────────────
+  {
+    patientId: "PT-007",
+    age: 29, gender: "F", zipCode: "10005", region: "Bronx",
+    preExistingConditions: [],
+    temperatureC: 38.1, bloodPressureSystolic: 118, bloodPressureDiastolic: 76,
+    spO2: 97, heartRate: 88,
+    onsetDate: "2025-01-14",
+    symptoms: ["fever", "sore_throat", "headache", "mild_fatigue", "runny_nose"],
+    wbcCount: 5.2, cReactiveProtein: 4, viralLoad: null,
+    hbA1c: null, bloodGlucose: null, liverAlt: null, kidneyCreatinine: null,
+    source: "walk_in",
+  },
+  {
+    patientId: "PT-008",
+    age: 33, gender: "M", zipCode: "10005", region: "Bronx",
+    preExistingConditions: [],
+    temperatureC: 37.9, bloodPressureSystolic: 122, bloodPressureDiastolic: 78,
+    spO2: 98, heartRate: 82,
+    onsetDate: "2025-01-14",
+    symptoms: ["mild_fever", "body_aches", "fatigue", "cough"],
+    wbcCount: 6.8, cReactiveProtein: 5, viralLoad: null,
+    hbA1c: null, bloodGlucose: null, liverAlt: null, kidneyCreatinine: null,
+    source: "walk_in",
+  },
+  {
+    patientId: "PT-009",
+    age: 42, gender: "F", zipCode: "10006", region: "Staten Island",
+    preExistingConditions: ["hypertension"],
+    temperatureC: 37.2, bloodPressureSystolic: 148, bloodPressureDiastolic: 94,
+    spO2: 98, heartRate: 74,
+    onsetDate: "2025-01-08",
+    symptoms: ["frequent_urination", "excessive_thirst", "blurred_vision", "fatigue"],
+    wbcCount: null, cReactiveProtein: null, viralLoad: null,
+    hbA1c: 7.1, bloodGlucose: 195, liverAlt: null, kidneyCreatinine: null,
+    source: "routine_checkup",
+  },
+  {
+    patientId: "PT-010",
+    age: 25, gender: "M", zipCode: "10002", region: "Manhattan South",
+    preExistingConditions: [],
+    temperatureC: 37.6, bloodPressureSystolic: 115, bloodPressureDiastolic: 74,
+    spO2: 99, heartRate: 78,
+    onsetDate: "2025-01-15",
+    symptoms: ["sore_throat", "runny_nose", "mild_headache"],
+    wbcCount: 7.2, cReactiveProtein: 2, viralLoad: null,
+    hbA1c: null, bloodGlucose: null, liverAlt: null, kidneyCreatinine: null,
+    source: "telehealth",
+  },
+];
+
+export const SAMPLE_PATIENTS = SAMPLE_PATIENTS_RAW.map(createPatientRecord);

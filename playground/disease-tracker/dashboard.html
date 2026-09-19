@@ -1,0 +1,2268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Disease & Symptom Tracking Platform</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f0f2f5;
+    --surface: #ffffff;
+    --surface2: #f7f8fa;
+    --border: #e5e7eb;
+    --text: #1f2328;
+    --muted: #57606a;
+    --accent: #3b82d4;
+    --critical: #dc2626;
+    --critical-bg: #fef2f2;
+    --critical-border: #fecaca;
+    --moderate: #d97706;
+    --moderate-bg: #fffbeb;
+    --moderate-border: #fde68a;
+    --low: #16a34a;
+    --low-bg: #f0fdf4;
+    --low-border: #bbf7d0;
+    --purple: #7c3aed;
+  }
+  body { font-family: -apple-system, "Segoe UI", system-ui, sans-serif; font-size: 14px; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+  /* ── Layout ── */
+  .shell { display: flex; min-height: 100vh; }
+  .sidebar { width: 220px; background: #1e2330; color: #c9d1d9; flex-shrink: 0; display: flex; flex-direction: column; }
+  .sidebar-logo { padding: 20px 18px 16px; border-bottom: 1px solid #2d3348; }
+  .sidebar-logo h1 { font-size: 13px; font-weight: 700; color: #e6edf3; letter-spacing: .5px; text-transform: uppercase; }
+  .sidebar-logo p { font-size: 11px; color: #8b949e; margin-top: 2px; }
+  .sidebar-nav { padding: 12px 0; flex: 1; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 18px; font-size: 13px; cursor: pointer; border-left: 3px solid transparent; transition: background .15s; color: #8b949e; }
+  .nav-item:hover { background: #2d3348; color: #c9d1d9; }
+  .nav-item.active { border-left-color: var(--accent); background: #2d3348; color: #e6edf3; }
+  .nav-icon { font-size: 15px; width: 18px; text-align: center; }
+  .sidebar-footer { padding: 14px 18px; border-top: 1px solid #2d3348; font-size: 11px; color: #484f58; }
+
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 52px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .topbar-title { font-weight: 600; font-size: 15px; }
+  .topbar-meta { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 16px; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--low); display: inline-block; margin-right: 5px; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .content { flex: 1; overflow-y: auto; padding: 24px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── KPI Cards ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+  .kpi-card.critical { border-left: 4px solid var(--critical); }
+  .kpi-card.moderate { border-left: 4px solid var(--moderate); }
+  .kpi-card.accent   { border-left: 4px solid var(--accent); }
+  .kpi-card.purple   { border-left: 4px solid var(--purple); }
+  .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); font-weight: 600; }
+  .kpi-value { font-size: 32px; font-weight: 700; line-height: 1.1; margin: 6px 0 4px; }
+  .kpi-card.critical .kpi-value { color: var(--critical); }
+  .kpi-card.moderate .kpi-value { color: var(--moderate); }
+  .kpi-card.accent   .kpi-value { color: var(--accent); }
+  .kpi-card.purple   .kpi-value { color: var(--purple); }
+  .kpi-sub { font-size: 12px; color: var(--muted); }
+
+  /* ── Panels ── */
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 20px; }
+  .panel-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .panel-title { font-weight: 600; font-size: 14px; }
+  .panel-body { padding: 18px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .three-col { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+
+  /* ── Patient Table ── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { background: var(--surface2); padding: 10px 12px; text-align: left; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  tbody tr { border-bottom: 1px solid var(--border); cursor: pointer; transition: background .1s; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td { padding: 10px 12px; vertical-align: middle; }
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .badge-critical { background: var(--critical-bg); color: var(--critical); border: 1px solid var(--critical-border); }
+  .badge-moderate { background: var(--moderate-bg); color: var(--moderate); border: 1px solid var(--moderate-border); }
+  .badge-low      { background: var(--low-bg); color: var(--low); border: 1px solid var(--low-border); }
+  .score-bar { display: flex; align-items: center; gap: 8px; }
+  .score-bar-track { width: 80px; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .score-bar-fill { height: 100%; border-radius: 3px; }
+  .fill-critical { background: var(--critical); }
+  .fill-moderate { background: var(--moderate); }
+  .fill-low      { background: var(--low); }
+
+  /* ── Heatmap Grid ── */
+  .heatmap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+  .heat-card { border-radius: 8px; padding: 14px 16px; border: 1px solid transparent; }
+  .heat-card.HIGH     { background: var(--critical-bg); border-color: var(--critical-border); }
+  .heat-card.MODERATE { background: var(--moderate-bg); border-color: var(--moderate-border); }
+  .heat-card.LOW      { background: var(--low-bg); border-color: var(--low-border); }
+  .heat-region { font-weight: 700; font-size: 13px; }
+  .heat-card.HIGH     .heat-region { color: var(--critical); }
+  .heat-card.MODERATE .heat-region { color: var(--moderate); }
+  .heat-card.LOW      .heat-region { color: var(--low); }
+  .heat-score { font-size: 26px; font-weight: 800; line-height: 1; margin: 4px 0; }
+  .heat-meta { font-size: 11px; color: var(--muted); }
+  .heat-trend { font-size: 11px; font-weight: 600; margin-top: 4px; }
+  .trend-surging { color: var(--critical); }
+  .trend-rising   { color: var(--moderate); }
+  .trend-stable   { color: var(--accent); }
+  .trend-declining{ color: var(--low); }
+
+  /* ── Flags / Actions List ── */
+  .flag-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .flag-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border-radius: 6px; font-size: 12px; }
+  .flag-item.critical { background: var(--critical-bg); border-left: 3px solid var(--critical); }
+  .flag-item.warning  { background: var(--moderate-bg); border-left: 3px solid var(--moderate); }
+  .flag-item.info     { background: #eff6ff; border-left: 3px solid var(--accent); }
+  .flag-label { font-weight: 600; }
+  .flag-value { color: var(--muted); margin-left: auto; white-space: nowrap; font-size: 11px; }
+
+  /* ── Detail Modal ── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; display: none; align-items: flex-start; justify-content: center; padding: 40px 20px; overflow-y: auto; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border-radius: 12px; width: 100%; max-width: 720px; }
+  .modal-header { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .modal-header h2 { font-size: 16px; font-weight: 700; }
+  .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--muted); padding: 0 4px; }
+  .modal-body { padding: 22px; display: flex; flex-direction: column; gap: 18px; }
+  .modal-section h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin-bottom: 10px; }
+  .vitals-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+  .vital-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .vital-label { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); font-weight: 600; }
+  .vital-value { font-size: 18px; font-weight: 700; margin-top: 2px; }
+  .vital-box.flagged { border-color: var(--critical); background: var(--critical-bg); }
+  .vital-box.flagged .vital-value { color: var(--critical); }
+  .action-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .action-item { padding: 8px 12px; border-radius: 6px; font-size: 13px; background: var(--surface2); border: 1px solid var(--border); }
+  .diag-orders { display: flex; flex-wrap: wrap; gap: 6px; }
+  .diag-tag { background: #eff6ff; color: var(--accent); border: 1px solid #bfdbfe; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+  .disease-match { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); font-size: 12px; margin-bottom: 5px; }
+  .match-bar { height: 4px; border-radius: 2px; background: var(--accent); margin-top: 4px; }
+
+  /* ── Report Page ── */
+  .report-toolbar { display: flex; gap: 10px; margin-bottom: 18px; }
+  .btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid transparent; }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-outline { background: var(--surface); color: var(--text); border-color: var(--border); }
+  .btn:hover { opacity: .88; }
+  .report-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; }
+  .report-card h4 { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+  .report-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; border-bottom: 1px solid var(--border); }
+  .report-row:last-child { border-bottom: none; }
+  .report-key { color: var(--muted); }
+
+  /* ── Bar chart (pure CSS/SVG-free) ── */
+  .mini-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; padding: 4px 0; }
+  .bar-col { display: flex; flex-direction: column; align-items: center; flex: 1; gap: 2px; }
+  .bar-fill { width: 100%; background: var(--accent); border-radius: 2px 2px 0 0; min-height: 2px; opacity: .8; }
+  .bar-label { font-size: 9px; color: var(--muted); writing-mode: horizontal-tb; }
+
+  /* ── Containment alerts ── */
+  .alert-banner { border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; display: flex; gap: 12px; align-items: flex-start; }
+  .alert-banner.high   { background: var(--critical-bg); border: 1px solid var(--critical-border); }
+  .alert-banner.medium { background: var(--moderate-bg); border: 1px solid var(--moderate-border); }
+  .alert-icon { font-size: 18px; line-height: 1; }
+  .alert-content h4 { font-size: 13px; font-weight: 700; }
+  .alert-content p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* ── Add Patient Form ── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; }
+  .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px 20px; }
+  .form-grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px 20px; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+  .field input, .field select, .field textarea {
+    padding: 8px 11px; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 13px; font-family: inherit; background: var(--surface);
+    color: var(--text); outline: none; transition: border-color .15s;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+  .field input.err, .field select.err { border-color: var(--critical); background: var(--critical-bg); }
+  .field-hint { font-size: 10px; color: var(--muted); margin-top: 1px; }
+  .form-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px;
+    color: var(--muted); border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 14px; }
+  .symptom-grid { display: flex; flex-wrap: wrap; gap: 7px; }
+  .sx-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px;
+    border: 1px solid var(--border); border-radius: 20px; font-size: 12px; cursor: pointer;
+    background: var(--surface); user-select: none; transition: all .12s; }
+  .sx-chip.selected { background: #eff6ff; border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .sx-chip:hover { background: var(--surface2); }
+  .vital-range { font-size: 10px; color: var(--muted); }
+  .form-actions { display: flex; gap: 10px; align-items: center; padding-top: 4px; }
+  .toast { position: fixed; bottom: 24px; right: 24px; background: #1e2330; color: #e6edf3;
+    padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 500;
+    z-index: 2000; opacity: 0; transform: translateY(8px); transition: all .3s; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.success { border-left: 4px solid var(--low); }
+  .toast.error   { border-left: 4px solid var(--critical); }
+
+  /* ── CAPA Module ── */
+  :root { --capa-open:#dc2626; --capa-progress:#d97706; --capa-closed:#16a34a; --capa-overdue:#7c3aed; }
+  .capa-status-open     { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+  .capa-status-progress { background:#fffbeb; color:#d97706; border:1px solid #fde68a; }
+  .capa-status-closed   { background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0; }
+  .capa-status-overdue  { background:#f5f3ff; color:#7c3aed; border:1px solid #ddd6fe; }
+  .capa-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 18px; margin-bottom:12px; border-left:4px solid var(--border); }
+  .capa-card.open     { border-left-color: var(--capa-open); }
+  .capa-card.in_progress { border-left-color: var(--capa-progress); }
+  .capa-card.closed   { border-left-color: var(--capa-closed); }
+  .capa-card.overdue  { border-left-color: var(--capa-overdue); }
+  .capa-meta { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:6px; font-size:11px; color:var(--muted); }
+  .capa-timeline { border-left:2px solid var(--border); margin-left:10px; padding-left:16px; }
+  .capa-event { position:relative; padding:6px 0; font-size:12px; }
+  .capa-event::before { content:''; position:absolute; left:-20px; top:10px; width:8px; height:8px; border-radius:50%; background:var(--accent); border:2px solid #fff; box-shadow:0 0 0 1px var(--accent); }
+  .audit-trail-row { display:grid; grid-template-columns:140px 120px 100px 1fr; gap:8px; padding:7px 10px; border-bottom:1px solid var(--border); font-size:12px; align-items:start; }
+  .audit-trail-row:last-child { border-bottom:none; }
+  .audit-trail-header { background:var(--surface2); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); }
+
+  /* ── ICH E6 GCP Classifier ── */
+  .ich-grade-1 { background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0; }
+  .ich-grade-2 { background:#fefce8; color:#ca8a04; border:1px solid #fef08a; }
+  .ich-grade-3 { background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; }
+  .ich-grade-4 { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+  .ich-grade-5 { background:#f5f3ff; color:#6d28d9; border:1px solid #ddd6fe; }
+  .ich-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:12px; }
+  .ich-card-header { padding:12px 16px; display:flex; align-items:center; justify-content:space-between; }
+  .ich-card-body { padding:12px 16px; border-top:1px solid var(--border); font-size:12px; }
+  .gcp-tag { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; margin-right:4px; text-transform:uppercase; letter-spacing:.4px; }
+  .criteria-list { list-style:none; display:flex; flex-direction:column; gap:4px; }
+  .criteria-item { display:flex; gap:8px; align-items:flex-start; font-size:12px; padding:4px 0; border-bottom:1px solid var(--border); }
+  .criteria-item:last-child { border-bottom:none; }
+  .criteria-met     { color:var(--low); font-size:13px; }
+  .criteria-not-met { color:var(--muted); font-size:13px; }
+
+  /* ── Hospital Reminders ── */
+  .reminder-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 18px; margin-bottom:10px; display:flex; gap:14px; align-items:flex-start; }
+  .reminder-card.pending   { border-left:4px solid var(--moderate); }
+  .reminder-card.sent      { border-left:4px solid var(--low); }
+  .reminder-card.overdue   { border-left:4px solid var(--critical); }
+  .reminder-card.scheduled { border-left:4px solid var(--accent); }
+  .reminder-icon { font-size:22px; line-height:1; padding-top:2px; }
+  .reminder-body { flex:1; }
+  .reminder-body h4 { font-size:13px; font-weight:700; margin-bottom:3px; }
+  .reminder-body p  { font-size:12px; color:var(--muted); }
+  .reminder-timeline { display:flex; align-items:center; gap:0; margin:16px 0; overflow-x:auto; padding-bottom:4px; }
+  .rt-step { display:flex; flex-direction:column; align-items:center; min-width:110px; position:relative; }
+  .rt-step:not(:last-child)::after { content:''; position:absolute; top:14px; left:55px; width:100%; height:2px; background:var(--border); z-index:0; }
+  .rt-dot { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; z-index:1; border:2px solid #fff; box-shadow:0 0 0 2px var(--border); }
+  .rt-dot.done    { background:var(--low); box-shadow:0 0 0 2px var(--low); }
+  .rt-dot.active  { background:var(--moderate); box-shadow:0 0 0 2px var(--moderate); animation:pulse 1.5s infinite; }
+  .rt-dot.pending { background:var(--surface2); }
+  .rt-label { font-size:10px; color:var(--muted); text-align:center; margin-top:5px; line-height:1.3; }
+  .rt-label strong { font-size:11px; color:var(--text); display:block; }
+
+  /* ── Loading Overlay ── */
+  .loading-overlay { position:fixed; inset:0; background:rgba(255,255,255,.82); z-index:3000; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; }
+  .loading-overlay.hidden { display:none; }
+  .spinner { width:44px; height:44px; border:4px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .75s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .loading-overlay p { font-size:14px; font-weight:600; color:var(--muted); }
+
+  /* ── Fetch Error Banner ── */
+  #fetch-error-banner { display:none; position:fixed; top:0; left:0; right:0; z-index:2500; background:var(--critical-bg); border-bottom:2px solid var(--critical); padding:13px 24px; display:flex; align-items:center; gap:12px; }
+  #fetch-error-banner.hidden { display:none !important; }
+  #fetch-error-banner .fe-icon { font-size:20px; flex-shrink:0; }
+  #fetch-error-banner .fe-msg { flex:1; font-size:13px; font-weight:600; color:var(--critical); }
+  #fetch-error-banner .fe-sub { font-size:12px; color:var(--muted); font-weight:400; margin-top:1px; }
+  #fetch-error-banner button { background:var(--critical); color:#fff; border:none; border-radius:6px; padding:7px 14px; font-size:12px; font-weight:700; cursor:pointer; flex-shrink:0; }
+  #fetch-error-banner button:hover { opacity:.88; }
+
+  /* ── Responsive ── */
+  @media(max-width:900px){
+    .kpi-grid { grid-template-columns: repeat(2,1fr); }
+    .two-col, .three-col { grid-template-columns: 1fr; }
+    .vitals-grid { grid-template-columns: repeat(2,1fr); }
+    .form-grid, .form-grid-3, .form-grid-4 { grid-template-columns: 1fr 1fr; }
+  }
+  @media(max-width:600px){
+    .sidebar { display: none; }
+    .kpi-grid { grid-template-columns: 1fr 1fr; }
+    .form-grid, .form-grid-3, .form-grid-4 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ── Sidebar ── -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <h1>&#9763; MedTrack</h1>
+      <p>Disease &amp; Symptom Platform</p>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">&#128200;</span> Dashboard</div>
+      <div class="nav-item" onclick="showPage('patients',this)"><span class="nav-icon">&#128101;</span> Patient Monitor</div>
+      <div class="nav-item" onclick="showPage('epidemiology',this)"><span class="nav-icon">&#127758;</span> Regional Risk</div>
+      <div class="nav-item" onclick="showPage('alerts',this)"><span class="nav-icon">&#128680;</span> Containment Alerts</div>
+      <div class="nav-item" onclick="showPage('reports',this)"><span class="nav-icon">&#128196;</span> Reports &amp; Export</div>
+      <div class="nav-item" onclick="showPage('addpatient',this)"><span class="nav-icon">&#10133;</span> Add Patient</div>
+      <div class="nav-item" onclick="showPage('capa',this)"><span class="nav-icon">&#128203;</span> CAPA</div>
+      <div class="nav-item" onclick="showPage('gcp',this)"><span class="nav-icon">&#9878;</span> ICH E6 GCP</div>
+      <div class="nav-item" onclick="showPage('reminders',this)"><span class="nav-icon">&#128276;</span> Reminders</div>
+    </div>
+    <div class="sidebar-footer">v2.0 &nbsp;|&nbsp; ICH E6 GCP Aligned</div>
+  </nav>
+
+  <!-- ── Main ── -->
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title">Enterprise Disease &amp; Symptom Tracking Platform</span>
+      <div class="topbar-meta">
+        <span><span class="status-dot"></span>Live Monitoring</span>
+        <span id="clock"></span>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ════════════════════════════════════════════
+           PAGE: Dashboard
+      ════════════════════════════════════════════ -->
+      <div class="page active" id="page-dashboard">
+
+        <!-- KPI Bar -->
+        <div class="kpi-grid">
+          <div class="kpi-card accent">
+            <div class="kpi-label">Total Monitored Patients</div>
+            <div class="kpi-value" id="kpi-total">—</div>
+            <div class="kpi-sub">Trailing 14-day window</div>
+          </div>
+          <div class="kpi-card critical">
+            <div class="kpi-label">Critical Triage Alerts</div>
+            <div class="kpi-value" id="kpi-critical">—</div>
+            <div class="kpi-sub">Requiring immediate ICU/hospital action</div>
+          </div>
+          <div class="kpi-card moderate">
+            <div class="kpi-label">Active Outbreaks</div>
+            <div class="kpi-value" id="kpi-outbreaks">—</div>
+            <div class="kpi-sub">Regions with score ≥ 70</div>
+          </div>
+          <div class="kpi-card purple">
+            <div class="kpi-label">High-Risk Zones</div>
+            <div class="kpi-value" id="kpi-zones">—</div>
+            <div class="kpi-sub">Regions with risk score ≥ 40</div>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <!-- Severity Distribution -->
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">Severity Distribution</span></div>
+            <div class="panel-body">
+              <div id="severity-bars"></div>
+            </div>
+          </div>
+
+          <!-- Disease Match Frequency -->
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">Top Suspected Diagnoses</span></div>
+            <div class="panel-body" id="icd-freq"></div>
+          </div>
+        </div>
+
+        <!-- Recent Critical Alerts -->
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">🔴 Critical Triage Alerts — Immediate Action Required</span></div>
+          <div class="panel-body" id="critical-alerts-list"></div>
+        </div>
+
+      </div>
+
+      <!-- ════════════════════════════════════════════
+           PAGE: Patient Monitor
+      ════════════════════════════════════════════ -->
+      <div class="page" id="page-patients">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Patient Monitor — Sorted by Severity Score</span>
+            <div style="display:flex;gap:8px">
+              <select id="filter-severity" onchange="renderPatientTable()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:var(--surface)">
+                <option value="">All Severities</option>
+                <option value="critical">Critical</option>
+                <option value="moderate">Moderate</option>
+                <option value="low">Low</option>
+              </select>
+              <select id="filter-region" onchange="renderPatientTable()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:var(--surface)">
+                <option value="">All Regions</option>
+              </select>
+            </div>
+          </div>
+          <div class="panel-body table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Patient ID</th>
+                  <th>Age / Sex</th>
+                  <th>Region</th>
+                  <th>Onset Date</th>
+                  <th>Severity</th>
+                  <th>Score</th>
+                  <th>Primary Dx</th>
+                  <th>Outbreak?</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="patient-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════
+           PAGE: Regional Risk
+      ════════════════════════════════════════════ -->
+      <div class="page" id="page-epidemiology">
+        <div class="panel" style="margin-bottom:20px">
+          <div class="panel-header"><span class="panel-title">Geographic Risk Heatmap — Outbreak Risk Score (0–100)</span></div>
+          <div class="panel-body">
+            <div class="heatmap-grid" id="heatmap-grid"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">Regional Detail Table</span></div>
+          <div class="panel-body table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Region</th>
+                  <th>ZIP Codes</th>
+                  <th>Total Cases (14d)</th>
+                  <th>Critical %</th>
+                  <th>Growth Trend</th>
+                  <th>Velocity Ratio</th>
+                  <th>Risk Score</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="regional-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════
+           PAGE: Containment Alerts
+      ════════════════════════════════════════════ -->
+      <div class="page" id="page-alerts">
+        <div id="containment-alerts-body"></div>
+      </div>
+
+      <!-- ════════════════════════════════════════════
+           PAGE: Reports & Export
+      ════════════════════════════════════════════ -->
+      <div class="page" id="page-reports">
+        <div class="report-toolbar">
+          <button class="btn btn-primary" onclick="exportPublicHealthReport()">&#128229; Export Public Health Report (JSON)</button>
+          <button class="btn btn-outline" onclick="exportPatientLog()">&#128229; Export Patient Case Log (CSV)</button>
+          <button class="btn btn-outline" onclick="window.print()">&#128438; Print Summary</button>
+        </div>
+
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">Epidemiological Summary</span></div>
+            <div class="panel-body" id="epi-summary-body"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><span class="panel-title">ICD-10 Code Frequency</span></div>
+            <div class="panel-body" id="icd-report-body"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">Active Containment Workflow Log</span></div>
+          <div class="panel-body" id="containment-log-body"></div>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════
+           PAGE: Add Patient
+      ════════════════════════════════════════════ -->
+      <div class="page" id="page-addpatient">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">&#10133; Add New Patient Record</span>
+            <span style="font-size:12px;color:var(--muted)">All fields marked * are required</span>
+          </div>
+          <div class="panel-body">
+            <form id="add-patient-form" onsubmit="submitPatient(event)" novalidate>
+
+              <!-- Demographics -->
+              <div class="form-section-title">Patient Demographics</div>
+              <div class="form-grid-4" style="margin-bottom:18px">
+                <div class="field">
+                  <label>Patient ID</label>
+                  <input type="text" id="f-id" placeholder="Auto-generated" />
+                  <span class="field-hint">Leave blank to auto-generate</span>
+                </div>
+                <div class="field">
+                  <label>Age *</label>
+                  <input type="number" id="f-age" min="0" max="120" placeholder="e.g. 45" required />
+                </div>
+                <div class="field">
+                  <label>Gender *</label>
+                  <select id="f-gender" required>
+                    <option value="">Select…</option>
+                    <option value="M">Male</option>
+                    <option value="F">Female</option>
+                    <option value="O">Other</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Symptom Onset Date *</label>
+                  <input type="date" id="f-onset" required />
+                </div>
+              </div>
+              <div class="form-grid" style="margin-bottom:18px">
+                <div class="field">
+                  <label>Region *</label>
+                  <input type="text" id="f-region" placeholder="e.g. Manhattan North" required />
+                </div>
+                <div class="field">
+                  <label>ZIP Code *</label>
+                  <input type="text" id="f-zip" placeholder="e.g. 10001" required />
+                </div>
+              </div>
+              <div class="field" style="margin-bottom:18px">
+                <label>Pre-existing Conditions</label>
+                <div class="symptom-grid" id="pre-chip-grid">
+                  <!-- populated by JS -->
+                </div>
+              </div>
+
+              <!-- Vital Signs -->
+              <div class="form-section-title">Vital Signs</div>
+              <div class="form-grid-4" style="margin-bottom:18px">
+                <div class="field">
+                  <label>Temperature (°C) *</label>
+                  <input type="number" id="f-temp" step="0.1" min="34" max="43" placeholder="e.g. 38.5" required />
+                  <span class="field-hint vital-range">Normal: 36.1–37.2 °C &nbsp;|&nbsp; Fever: ≥38.0°C</span>
+                </div>
+                <div class="field">
+                  <label>SpO₂ (%) *</label>
+                  <input type="number" id="f-spo2" min="50" max="100" placeholder="e.g. 97" required />
+                  <span class="field-hint vital-range">Normal: ≥95% &nbsp;|&nbsp; Critical: &lt;92%</span>
+                </div>
+                <div class="field">
+                  <label>Heart Rate (bpm) *</label>
+                  <input type="number" id="f-hr" min="20" max="250" placeholder="e.g. 80" required />
+                  <span class="field-hint vital-range">Normal: 60–100 bpm</span>
+                </div>
+                <div class="field">
+                  <label>Blood Pressure (mmHg) *</label>
+                  <div style="display:flex;gap:6px;align-items:center">
+                    <input type="number" id="f-bps" min="50" max="250" placeholder="Systolic" required style="flex:1" />
+                    <span style="color:var(--muted);font-size:13px">/</span>
+                    <input type="number" id="f-bpd" min="30" max="150" placeholder="Diastolic" required style="flex:1" />
+                  </div>
+                  <span class="field-hint vital-range">Normal: ~120/80 mmHg</span>
+                </div>
+              </div>
+
+              <!-- Symptoms -->
+              <div class="form-section-title">Reported Symptoms</div>
+              <div class="symptom-grid" id="sx-chip-grid" style="margin-bottom:18px">
+                <!-- populated by JS -->
+              </div>
+
+              <!-- Lab Results -->
+              <div class="form-section-title">Lab Results <span style="font-size:11px;font-weight:400;color:var(--muted)">(leave blank if not available)</span></div>
+              <div class="form-grid-3" style="margin-bottom:24px">
+                <div class="field">
+                  <label>WBC Count</label>
+                  <input type="number" id="f-wbc" step="0.1" placeholder="e.g. 8.5" />
+                  <span class="field-hint vital-range">Normal: 4.5–11.0 × 10³/µL</span>
+                </div>
+                <div class="field">
+                  <label>CRP (mg/L)</label>
+                  <input type="number" id="f-crp" step="0.1" placeholder="e.g. 5.2" />
+                  <span class="field-hint vital-range">Normal: 0–3 mg/L</span>
+                </div>
+                <div class="field">
+                  <label>Viral Load (copies/mL)</label>
+                  <input type="number" id="f-vl" placeholder="e.g. 1500" />
+                  <span class="field-hint vital-range">Significant: ≥1000</span>
+                </div>
+                <div class="field">
+                  <label>HbA1c (%)</label>
+                  <input type="number" id="f-hba1c" step="0.1" placeholder="e.g. 5.8" />
+                  <span class="field-hint vital-range">Normal: 4.0–5.6%</span>
+                </div>
+                <div class="field">
+                  <label>Blood Glucose (mg/dL)</label>
+                  <input type="number" id="f-gluc" placeholder="e.g. 95" />
+                  <span class="field-hint vital-range">Fasting normal: 70–99</span>
+                </div>
+                <div class="field">
+                  <label>ALT / Liver (U/L)</label>
+                  <input type="number" id="f-alt" placeholder="e.g. 40" />
+                  <span class="field-hint vital-range">Normal: 7–56 U/L</span>
+                </div>
+                <div class="field">
+                  <label>Creatinine (mg/dL)</label>
+                  <input type="number" id="f-creat" step="0.01" placeholder="e.g. 1.0" />
+                  <span class="field-hint vital-range">Normal: 0.7–1.3 mg/dL</span>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary" style="padding:10px 28px;font-size:14px">&#10133; Add Patient &amp; Run Analysis</button>
+                <button type="button" class="btn btn-outline" onclick="resetForm()">&#8635; Reset Form</button>
+                <span id="form-error-msg" style="color:var(--critical);font-size:12px;font-weight:600"></span>
+              </div>
+
+            </form>
+          </div>
+        </div>
+
+        <!-- Live result preview -->
+        <div id="add-result-panel" style="display:none">
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">&#9989; Analysis Result — New Patient</span>
+              <button class="btn btn-outline" style="font-size:12px;padding:5px 12px" onclick="document.getElementById('add-result-panel').style.display='none'">Dismiss</button>
+            </div>
+            <div class="panel-body" id="add-result-body"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════
+           PAGE: CAPA (Audit-Ready)
+      ════════════════════════════════════════════ -->
+      <div class="page" id="page-capa">
+
+        <!-- CAPA KPIs -->
+        <div class="kpi-grid" style="margin-bottom:20px">
+          <div class="kpi-card critical"><div class="kpi-label">Open CAPAs</div><div class="kpi-value" id="capa-kpi-open">—</div><div class="kpi-sub">Require immediate action</div></div>
+          <div class="kpi-card moderate"><div class="kpi-label">In Progress</div><div class="kpi-value" id="capa-kpi-prog">—</div><div class="kpi-sub">Under investigation</div></div>
+          <div class="kpi-card accent"><div class="kpi-label">Closed</div><div class="kpi-value" id="capa-kpi-closed">—</div><div class="kpi-sub">Verified &amp; effective</div></div>
+          <div class="kpi-card purple"><div class="kpi-label">Overdue</div><div class="kpi-value" id="capa-kpi-overdue">—</div><div class="kpi-sub">Past due date</div></div>
+        </div>
+
+        <!-- New CAPA form -->
+        <div class="panel" style="margin-bottom:20px">
+          <div class="panel-header"><span class="panel-title">&#10133; Raise New CAPA</span></div>
+          <div class="panel-body">
+            <div class="form-grid-3" style="margin-bottom:12px">
+              <div class="field">
+                <label>CAPA Type *</label>
+                <select id="capa-type">
+                  <option value="corrective">Corrective Action</option>
+                  <option value="preventive">Preventive Action</option>
+                  <option value="deviation">Protocol Deviation</option>
+                  <option value="adverse_event">Adverse Event</option>
+                  <option value="near_miss">Near Miss</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Linked Patient ID</label>
+                <input type="text" id="capa-pid" placeholder="e.g. PT-001 (optional)" />
+              </div>
+              <div class="field">
+                <label>Due Date *</label>
+                <input type="date" id="capa-due" />
+              </div>
+            </div>
+            <div class="field" style="margin-bottom:12px">
+              <label>Deviation / Finding Description *</label>
+              <textarea id="capa-desc" rows="2" placeholder="Describe the non-conformance, adverse event, or finding…" style="resize:vertical"></textarea>
+            </div>
+            <div class="form-grid" style="margin-bottom:12px">
+              <div class="field">
+                <label>Root Cause</label>
+                <input type="text" id="capa-cause" placeholder="e.g. Protocol not followed, equipment failure…" />
+              </div>
+              <div class="field">
+                <label>Assigned To</label>
+                <input type="text" id="capa-owner" placeholder="e.g. Dr. Smith / Nurse Unit A" />
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" onclick="addCapa()">&#128203; Raise CAPA</button>
+              <span id="capa-err" style="color:var(--critical);font-size:12px;font-weight:600"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- CAPA Registry -->
+        <div class="panel" style="margin-bottom:20px">
+          <div class="panel-header">
+            <span class="panel-title">CAPA Registry</span>
+            <div style="display:flex;gap:8px">
+              <select id="capa-filter" onchange="renderCapa()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:var(--surface)">
+                <option value="">All Statuses</option>
+                <option value="open">Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="closed">Closed</option>
+                <option value="overdue">Overdue</option>
+              </select>
+              <button class="btn btn-outline" style="font-size:11px;padding:4px 10px" onclick="exportCapa()">&#128229; Export CAPA Log</button>
+            </div>
+          </div>
+          <div class="panel-body" id="capa-registry-body"></div>
+        </div>
+
+        <!-- Audit Trail -->
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">&#128274; Audit Trail</span><span style="font-size:11px;color:var(--muted)">Immutable event log — ICH E6 §8 compliant</span></div>
+          <div class="panel-body">
+            <div class="audit-trail-row audit-trail-header">
+              <span>Timestamp</span><span>User / System</span><span>Event Type</span><span>Detail</span>
+            </div>
+            <div id="audit-trail-body"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════
+           PAGE: ICH E6 GCP Severity Classifier
+      ════════════════════════════════════════════ -->
+      <div class="page" id="page-gcp">
+
+        <!-- GCP KPIs -->
+        <div class="kpi-grid" style="margin-bottom:20px">
+          <div class="kpi-card purple"><div class="kpi-label">Grade 4–5 (SAE)</div><div class="kpi-value" id="gcp-kpi-sae">—</div><div class="kpi-sub">Serious Adverse Events</div></div>
+          <div class="kpi-card critical"><div class="kpi-label">Grade 3 (Severe)</div><div class="kpi-value" id="gcp-kpi-g3">—</div><div class="kpi-sub">Require medical intervention</div></div>
+          <div class="kpi-card moderate"><div class="kpi-label">Grade 2 (Moderate)</div><div class="kpi-value" id="gcp-kpi-g2">—</div><div class="kpi-sub">Impairs normal activity</div></div>
+          <div class="kpi-card accent"><div class="kpi-label">Grade 1 (Mild)</div><div class="kpi-value" id="gcp-kpi-g1">—</div><div class="kpi-sub">Transient, self-limiting</div></div>
+        </div>
+
+        <!-- GCP Reference Table -->
+        <div class="panel" style="margin-bottom:20px">
+          <div class="panel-header"><span class="panel-title">ICH E6 GCP — CTCAE Grading Reference</span></div>
+          <div class="panel-body table-wrap">
+            <table>
+              <thead><tr><th>Grade</th><th>Classification</th><th>Definition</th><th>Regulatory Requirement</th><th>Reporting Timeline</th></tr></thead>
+              <tbody>
+                <tr><td><span class="badge ich-grade-1">Grade 1</span></td><td><strong>Mild</strong></td><td>Asymptomatic or mild; no intervention needed</td><td>Document in source; no expedited report</td><td>Per scheduled visit</td></tr>
+                <tr><td><span class="badge ich-grade-2">Grade 2</span></td><td><strong>Moderate</strong></td><td>Minimal, local, non-invasive intervention indicated</td><td>Document; physician review required</td><td>Within 7 days</td></tr>
+                <tr><td><span class="badge ich-grade-3">Grade 3</span></td><td><strong>Severe</strong></td><td>Medically significant; hospitalization or prolongation</td><td>Expedited safety report required (IND)</td><td>Within 15 days</td></tr>
+                <tr><td><span class="badge ich-grade-4">Grade 4</span></td><td><strong>Life-Threatening</strong></td><td>Life-threatening consequences; urgent intervention</td><td>SAE report mandatory; IRB/Ethics notification</td><td>Within 7 days</td></tr>
+                <tr><td><span class="badge ich-grade-5">Grade 5</span></td><td><strong>Death</strong></td><td>Death related to adverse event</td><td>Immediate regulatory notification; full investigation</td><td>Within 24 hours</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Patient GCP Classifications -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Patient-Level ICH E6 GCP Classification</span>
+            <span style="font-size:11px;color:var(--muted)">Auto-mapped from triage severity &amp; vital thresholds</span>
+          </div>
+          <div class="panel-body" id="gcp-patient-body"></div>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════
+           PAGE: Hospital Reminders
+      ════════════════════════════════════════════ -->
+      <div class="page" id="page-reminders">
+
+        <!-- Reminder KPIs -->
+        <div class="kpi-grid" style="margin-bottom:20px">
+          <div class="kpi-card critical"><div class="kpi-label">Overdue Reminders</div><div class="kpi-value" id="rem-kpi-overdue">—</div><div class="kpi-sub">Past scheduled time</div></div>
+          <div class="kpi-card moderate"><div class="kpi-label">Due Today (−1 day)</div><div class="kpi-value" id="rem-kpi-today">—</div><div class="kpi-sub">Pre-admission alerts</div></div>
+          <div class="kpi-card accent"><div class="kpi-label">Upcoming (+2 days)</div><div class="kpi-value" id="rem-kpi-upcoming">—</div><div class="kpi-sub">Post-treatment follow-ups</div></div>
+          <div class="kpi-card purple"><div class="kpi-label">Total Scheduled</div><div class="kpi-value" id="rem-kpi-total">—</div><div class="kpi-sub">Active reminder pipeline</div></div>
+        </div>
+
+        <!-- Reminder logic explanation -->
+        <div class="panel" style="margin-bottom:20px">
+          <div class="panel-header"><span class="panel-title">&#128276; Automated Reminder Schedule Rules</span></div>
+          <div class="panel-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+              <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px">
+                <div style="font-weight:700;color:var(--accent);margin-bottom:4px">&#8722;1 Day — Pre-Admission</div>
+                <div style="font-size:12px;color:var(--muted)">Sent to hospital <strong>1 day before</strong> expected admission / appointment date. Includes patient vitals summary, suspected diagnosis, and any ICU pre-authorization requirements.</div>
+              </div>
+              <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px">
+                <div style="font-weight:700;color:var(--low);margin-bottom:4px">Day 0 — Admission Day</div>
+                <div style="font-size:12px;color:var(--muted)">Real-time alert sent on admission day with full clinical summary and triage classification.</div>
+              </div>
+              <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px">
+                <div style="font-weight:700;color:var(--moderate);margin-bottom:4px">&#43;2 Days — Post-Treatment</div>
+                <div style="font-size:12px;color:var(--muted)">Follow-up reminder sent <strong>2 days after</strong> admission/treatment onset. Includes lab re-check orders and outcome assessment request.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add Custom Reminder -->
+        <div class="panel" style="margin-bottom:20px">
+          <div class="panel-header"><span class="panel-title">&#10133; Schedule Custom Reminder</span></div>
+          <div class="panel-body">
+            <div class="form-grid-4" style="margin-bottom:12px">
+              <div class="field">
+                <label>Patient ID</label>
+                <input type="text" id="rem-pid" placeholder="e.g. PT-001" />
+              </div>
+              <div class="field">
+                <label>Hospital / Clinic</label>
+                <input type="text" id="rem-hospital" placeholder="e.g. City General Hospital" />
+              </div>
+              <div class="field">
+                <label>Reminder Type</label>
+                <select id="rem-type">
+                  <option value="pre_admission">Pre-Admission (−1 day)</option>
+                  <option value="admission">Admission Day</option>
+                  <option value="post_treatment">Post-Treatment (+2 days)</option>
+                  <option value="lab_followup">Lab Follow-Up</option>
+                  <option value="medication_review">Medication Review</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Scheduled Date</label>
+                <input type="date" id="rem-date" />
+              </div>
+            </div>
+            <div class="field" style="margin-bottom:12px">
+              <label>Message / Note</label>
+              <input type="text" id="rem-note" placeholder="Optional note to include in reminder…" />
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" onclick="addReminder()">&#128276; Schedule Reminder</button>
+              <span id="rem-err" style="color:var(--critical);font-size:12px;font-weight:600"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reminder Feed -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Reminder Feed</span>
+            <div style="display:flex;gap:8px">
+              <select id="rem-filter" onchange="renderReminders()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:var(--surface)">
+                <option value="">All</option>
+                <option value="overdue">Overdue</option>
+                <option value="pending">Pending</option>
+                <option value="sent">Sent</option>
+                <option value="scheduled">Scheduled</option>
+              </select>
+              <button class="btn btn-outline" style="font-size:11px;padding:4px 10px" onclick="markAllSent()">&#10003; Mark All Pending as Sent</button>
+            </div>
+          </div>
+          <div class="panel-body" id="reminder-feed-body"></div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- ── Loading Overlay ── -->
+<div class="loading-overlay hidden" id="loading-overlay">
+  <div class="spinner"></div>
+  <p>Fetching patient data&hellip;</p>
+</div>
+
+<!-- ── Fetch Error Banner ── -->
+<div id="fetch-error-banner" class="hidden">
+  <span class="fe-icon">&#9888;</span>
+  <div class="fe-msg">
+    <div id="fetch-error-title">Unable to load patient data</div>
+    <div class="fe-sub" id="fetch-error-detail"></div>
+  </div>
+  <button onclick="retryFetch()">&#8635; Retry</button>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- ── Patient Detail Modal ── -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal-box">
+    <div class="modal-header">
+      <h2 id="modal-title">Patient Detail</h2>
+      <button class="modal-close" onclick="closeModalDirect()">&#10005;</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  INLINE DATA — Full pipeline output (no server required)
+// ════════════════════════════════════════════════════════════════
+
+// ── Schema helpers ──────────────────────────────────────────────
+function generateId() { return "PT-" + Math.random().toString(36).substr(2,9).toUpperCase(); }
+function c2f(c) { return parseFloat((c*9/5+32).toFixed(1)); }
+
+function createPatient(raw) {
+  return {
+    patientId: raw.patientId,
+    demographics: { age: raw.age, gender: raw.gender, zipCode: raw.zipCode, region: raw.region },
+    preExistingConditions: raw.pre || [],
+    vitals: {
+      temperatureC: raw.tempC,
+      temperatureF: c2f(raw.tempC),
+      bloodPressureSystolic: raw.bpS,
+      bloodPressureDiastolic: raw.bpD,
+      spO2: raw.spo2,
+      heartRate: raw.hr,
+    },
+    symptoms: { onsetDate: raw.onset, reported: raw.sx },
+    labResults: {
+      wbcCount: raw.wbc ?? null,
+      hbA1c: raw.hba1c ?? null,
+      viralLoad: raw.vl ?? null,
+      bloodGlucose: raw.gluc ?? null,
+      liverAlt: raw.alt ?? null,
+      kidneyCreatinine: raw.creat ?? null,
+      cReactiveProtein: raw.crp ?? null,
+    },
+  };
+}
+
+// ── GraphQL endpoint & auth ──────────────────────────────────────
+// Replace these two values with your real endpoint and token.
+// While they remain as placeholders the app automatically falls back
+// to the built-in seed data so the UI stays fully functional.
+const GRAPHQL_ENDPOINT   = "https://api.yourhospital.com/graphql";
+const GRAPHQL_AUTH_TOKEN = "Bearer YOUR_TOKEN_HERE";
+
+// Set to true once your backend is live; keeps seed data active during dev.
+const USE_SEED_FALLBACK  =
+  GRAPHQL_ENDPOINT.includes("yourhospital.com") ||
+  GRAPHQL_AUTH_TOKEN === "Bearer YOUR_TOKEN_HERE";
+
+// ── GraphQL query ────────────────────────────────────────────────
+/**
+ * GET_PATIENTS — requests every field the UI pipeline depends on.
+ *
+ * Vitals sub-fields mirror the names the rules engine reads via
+ * patient.vitals.*  (temperatureC, spO2, heartRate, etc.).
+ * Lab sub-fields mirror patient.labResults.* keys.
+ * The `id` field is mapped to patientId; all others map 1-to-1.
+ */
+const GET_PATIENTS = `
+  query GET_PATIENTS {
+    patients {
+      id
+      name
+      age
+      gender
+      zipCode
+      region
+      onsetDate
+      preExistingConditions
+      symptoms
+      icdCode
+      vitals {
+        temperatureC
+        bloodPressureSystolic
+        bloodPressureDiastolic
+        spO2
+        heartRate
+      }
+      labResults {
+        wbcCount
+        cReactiveProtein
+        viralLoad
+        hbA1c
+        bloodGlucose
+        liverAlt
+        kidneyCreatinine
+      }
+    }
+  }
+`;
+
+// ── Seed data (fallback / offline mode) ─────────────────────────
+const SEED_RAW = [
+  { patientId:"PT-001", age:67, gender:"M", zipCode:"10001", region:"Manhattan North",  pre:["hypertension","COPD"],         tempC:39.8, bpS:88,  bpD:55,  spo2:87, hr:128, onset:"2025-01-10", sx:["high_fever_or_hypothermia","shortness_of_breath","rapid_heart_rate","confusion","clammy_skin"],           wbc:14.5, crp:32,  vl:null,  hba1c:null, gluc:null,  alt:null, creat:1.8  },
+  { patientId:"PT-002", age:54, gender:"F", zipCode:"10001", region:"Manhattan North",  pre:["diabetes","obesity"],           tempC:39.4, bpS:110, bpD:72,  spo2:90, hr:118, onset:"2025-01-11", sx:["fever","dry_cough","shortness_of_breath","fatigue","loss_of_taste"],                                    wbc:3.8,  crp:18,  vl:4500,  hba1c:8.2,  gluc:240,   alt:null, creat:null },
+  { patientId:"PT-003", age:72, gender:"M", zipCode:"10002", region:"Manhattan South",  pre:["heart_failure","CKD"],         tempC:38.9, bpS:185, bpD:100, spo2:91, hr:105, onset:"2025-01-09", sx:["shortness_of_breath","edema","confusion","fatigue","decreased_urination"],                               wbc:null, crp:null, vl:null,  hba1c:null, gluc:null,  alt:null, creat:2.4  },
+  { patientId:"PT-004", age:45, gender:"F", zipCode:"10003", region:"Brooklyn West",    pre:["prediabetes"],                 tempC:38.3, bpS:145, bpD:92,  spo2:95, hr:96,  onset:"2025-01-12", sx:["fever","productive_cough","chest_pain","fatigue","chills"],                                              wbc:12.5, crp:17,  vl:null,  hba1c:6.1,  gluc:118,   alt:null, creat:null },
+  { patientId:"PT-005", age:38, gender:"M", zipCode:"10003", region:"Brooklyn West",    pre:[],                              tempC:38.6, bpS:125, bpD:80,  spo2:94, hr:102, onset:"2025-01-13", sx:["fever","dry_cough","body_aches","fatigue","loss_of_smell"],                                             wbc:3.6,  crp:12,  vl:2200,  hba1c:null, gluc:null,  alt:null, creat:null },
+  { patientId:"PT-006", age:58, gender:"F", zipCode:"10004", region:"Queens",           pre:["non_alcoholic_fatty_liver"],   tempC:37.4, bpS:130, bpD:84,  spo2:97, hr:80,  onset:"2025-01-10", sx:["jaundice","abdominal_pain","fatigue","nausea","dark_urine"],                                            wbc:null, crp:null, vl:null,  hba1c:null, gluc:null,  alt:78,   creat:null },
+  { patientId:"PT-007", age:29, gender:"F", zipCode:"10005", region:"Bronx",            pre:[],                              tempC:38.1, bpS:118, bpD:76,  spo2:97, hr:88,  onset:"2025-01-14", sx:["fever","sore_throat","headache","mild_fatigue","runny_nose"],                                           wbc:5.2,  crp:4,   vl:null,  hba1c:null, gluc:null,  alt:null, creat:null },
+  { patientId:"PT-008", age:33, gender:"M", zipCode:"10005", region:"Bronx",            pre:[],                              tempC:37.9, bpS:122, bpD:78,  spo2:98, hr:82,  onset:"2025-01-14", sx:["mild_fever","body_aches","fatigue","cough"],                                                            wbc:6.8,  crp:5,   vl:null,  hba1c:null, gluc:null,  alt:null, creat:null },
+  { patientId:"PT-009", age:42, gender:"F", zipCode:"10006", region:"Staten Island",    pre:["hypertension"],                tempC:37.2, bpS:148, bpD:94,  spo2:98, hr:74,  onset:"2025-01-08", sx:["frequent_urination","excessive_thirst","blurred_vision","fatigue"],                                     wbc:null, crp:null, vl:null,  hba1c:7.1,  gluc:195,   alt:null, creat:null },
+  { patientId:"PT-010", age:25, gender:"M", zipCode:"10002", region:"Manhattan South",  pre:[],                              tempC:37.6, bpS:115, bpD:74,  spo2:99, hr:78,  onset:"2025-01-15", sx:["sore_throat","runny_nose","mild_headache"],                                                             wbc:7.2,  crp:2,   vl:null,  hba1c:null, gluc:null,  alt:null, creat:null },
+];
+
+/**
+ * Maps a single GraphQL patient node to the flat raw shape that
+ * createPatient() expects.  Extend this function if the schema
+ * field names differ from the keys shown above.
+ */
+function mapGraphQLRecord(node) {
+  const v = node.vitals      ?? {};
+  const l = node.labResults  ?? {};
+  return {
+    patientId : node.id,
+    age       : node.age,
+    gender    : node.gender,
+    zipCode   : node.zipCode,
+    region    : node.region,
+    pre       : node.preExistingConditions ?? [],
+    tempC     : v.temperatureC,
+    bpS       : v.bloodPressureSystolic,
+    bpD       : v.bloodPressureDiastolic,
+    spo2      : v.spO2,
+    hr        : v.heartRate,
+    onset     : node.onsetDate,
+    sx        : node.symptoms              ?? [],
+    wbc       : l.wbcCount                 ?? null,
+    crp       : l.cReactiveProtein         ?? null,
+    vl        : l.viralLoad                ?? null,
+    hba1c     : l.hbA1c                    ?? null,
+    gluc      : l.bloodGlucose             ?? null,
+    alt       : l.liverAlt                 ?? null,
+    creat     : l.kidneyCreatinine         ?? null,
+  };
+}
+
+// ── Mutable live arrays (populated by fetchGraphQLPatients) ──────
+const PATIENTS        = [];
+const ENGINE_RESULTS  = [];
+const TRIAGE_RESULTS  = [];
+const REGIONAL        = [];
+const GCP_RESULTS     = [];
+
+// ── Rules Engine ────────────────────────────────────────────────
+const DISEASE_DB = {
+  covid19:        { id:"covid19",        name:"COVID-19",             type:"infectious",          icd:"U07.1", symptoms:["fever","dry_cough","fatigue","loss_of_taste","loss_of_smell","shortness_of_breath","chest_pain","body_aches"],    labKeys:{ wbcCount:{max:4.0}, cReactiveProtein:{min:10}, viralLoad:{min:1000} }, vitalT:{ temperatureC:{c:39,w:38}, spO2:{c:92,w:94,inv:true}, heartRate:{c:120,w:100} }, qp:"Isolate 10 days from onset; notify close contacts", tx:"Antivirals for high-risk; ICU if SpO2<92%" },
+  influenza:      { id:"influenza",      name:"Influenza",            type:"infectious",          icd:"J11",   symptoms:["fever","chills","body_aches","fatigue","cough","sore_throat","headache"],                                           labKeys:{ wbcCount:{max:4.0} },                                                        vitalT:{ temperatureC:{c:39.5,w:38}, spO2:{c:92,w:94,inv:true} },             qp:"Isolate 5–7 days or until fever-free 24h",       tx:"Oseltamivir within 48h; supportive care" },
+  pneumonia:      { id:"pneumonia",      name:"Pneumonia",            type:"infectious",          icd:"J18.9", symptoms:["fever","chills","productive_cough","shortness_of_breath","chest_pain","fatigue","confusion"],                       labKeys:{ wbcCount:{min:11}, cReactiveProtein:{min:15} },                              vitalT:{ temperatureC:{c:39,w:38}, spO2:{c:92,w:94,inv:true}, heartRate:{c:125,w:100} }, qp:"Respiratory precautions; mask required", tx:"Antibiotics; O2 if SpO2<94%" },
+  sepsis:         { id:"sepsis",         name:"Sepsis",               type:"critical_infectious", icd:"A41.9", symptoms:["high_fever_or_hypothermia","confusion","rapid_breathing","rapid_heart_rate","extreme_pain","clammy_skin"],          labKeys:{ wbcCount:{min:12}, cReactiveProtein:{min:20} },                              vitalT:{ temperatureC:{c:38.3,w:38}, heartRate:{c:90,w:85}, bloodPressureSystolic:{c:90,w:100,inv:true}, spO2:{c:92,w:94,inv:true} }, qp:"ICU isolation; source control", tx:"IV antibiotics within 1h; fluid resus; vasopressors" },
+  diabetes_type2: { id:"diabetes_type2", name:"Type 2 Diabetes",      type:"chronic",             icd:"E11",   symptoms:["frequent_urination","excessive_thirst","blurred_vision","slow_healing_wounds","fatigue","numbness_tingling"],       labKeys:{ hbA1c:{min:6.5}, bloodGlucose:{min:200} },                                   vitalT:{ bloodPressureSystolic:{c:180,w:140} },             qp:"Not applicable — chronic metabolic condition",   tx:"Metformin; lifestyle; glucose monitoring" },
+  liver_disease:  { id:"liver_disease",  name:"Hepatic Dysfunction",  type:"chronic",             icd:"K76.9", symptoms:["jaundice","abdominal_pain","nausea","fatigue","dark_urine","pale_stools","easy_bruising"],                          labKeys:{ liverAlt:{min:56} },                                                         vitalT:{},                                                  qp:"Not required unless viral hepatitis",            tx:"Eliminate hepatotoxins; hepatology referral" },
+  kidney_disease: { id:"kidney_disease", name:"Renal Dysfunction",    type:"chronic",             icd:"N18",   symptoms:["edema","decreased_urination","fatigue","nausea","shortness_of_breath","confusion"],                                 labKeys:{ kidneyCreatinine:{min:1.3} },                                                vitalT:{ bloodPressureSystolic:{c:180,w:140} },             qp:"Not applicable",                                 tx:"Nephrology referral; BP management; dialysis if needed" },
+};
+
+function engineEval(patient) {
+  const v = patient.vitals, sx = new Set(patient.symptoms.reported.map(s=>s.toLowerCase())), labs = patient.labResults;
+  const vFlags=[], lFlags=[];
+
+  if(v.temperatureC>=39) vFlags.push({flag:"fever_critical",label:"Critical Fever",severity:"critical",value:`${v.temperatureC}°C`});
+  else if(v.temperatureC>=38) vFlags.push({flag:"fever_warning",label:"Fever Warning",severity:"warning",value:`${v.temperatureC}°C`});
+  if(v.spO2<92) vFlags.push({flag:"resp_critical",label:"Resp Distress – Critical",severity:"critical",value:`SpO2 ${v.spO2}%`});
+  else if(v.spO2<94) vFlags.push({flag:"resp_warning",label:"Resp Distress – Warning",severity:"warning",value:`SpO2 ${v.spO2}%`});
+  if(v.heartRate>=120) vFlags.push({flag:"tachy_critical",label:"Tachycardia – Critical",severity:"critical",value:`${v.heartRate} bpm`});
+  else if(v.heartRate>=100) vFlags.push({flag:"tachy_warning",label:"Tachycardia – Warning",severity:"warning",value:`${v.heartRate} bpm`});
+  if(v.bloodPressureSystolic<90) vFlags.push({flag:"hypo_critical",label:"Hypotension – Critical",severity:"critical",value:`${v.bloodPressureSystolic} mmHg`});
+  else if(v.bloodPressureSystolic<100) vFlags.push({flag:"hypo_warning",label:"Hypotension – Warning",severity:"warning",value:`${v.bloodPressureSystolic} mmHg`});
+  if(v.bloodPressureSystolic>=180) vFlags.push({flag:"hyper_critical",label:"Hypertension – Critical",severity:"critical",value:`${v.bloodPressureSystolic} mmHg`});
+  else if(v.bloodPressureSystolic>=140) vFlags.push({flag:"hyper_warning",label:"Hypertension – Warning",severity:"warning",value:`${v.bloodPressureSystolic} mmHg`});
+
+  const labRef = { wbcCount:[4.5,11,"10³/µL","WBC Count"], hbA1c:[4,5.6,"%","HbA1c"], bloodGlucose:[70,99,"mg/dL","Blood Glucose"], liverAlt:[7,56,"U/L","ALT"], kidneyCreatinine:[0.7,1.3,"mg/dL","Creatinine"], cReactiveProtein:[0,3,"mg/L","CRP"], viralLoad:[0,0,"copies/mL","Viral Load"] };
+  Object.entries(labRef).forEach(([k,[mn,mx,unit,name]])=>{
+    const val=labs[k]; if(val===null||val===undefined) return;
+    const hi=val>mx, lo=val<mn;
+    if(hi||lo) lFlags.push({marker:k,label:name,value:val,unit,direction:hi?"elevated":"low",severity:isLabCrit(k,val)?"critical":"warning"});
+  });
+
+  const matches = [];
+  Object.values(DISEASE_DB).forEach(d=>{
+    const syOvlp = d.symptoms.filter(s=>sx.has(s));
+    const syScore = syOvlp.length/d.symptoms.length;
+    let labHits=0, labTotal=Object.keys(d.labKeys).length;
+    Object.entries(d.labKeys).forEach(([k,t])=>{
+      const val=labs[k]; if(val===null||val===undefined) return;
+      if((t.min!==undefined&&val>=t.min)||(t.max!==undefined&&val<=t.max)) labHits++;
+    });
+    const labScore = labTotal>0?labHits/labTotal:0;
+    let vHits=0,vTotal=Object.keys(d.vitalT).length;
+    Object.entries(d.vitalT).forEach(([k,t])=>{
+      const val=v[k]; if(val===undefined) return;
+      const inv=t.inv; 
+      if(inv?(val<=t.c):(val>=t.c)) vHits++;
+      else if(inv?(val<=t.w):(val>=t.w)) vHits+=0.5;
+    });
+    const vScore = vTotal>0?vHits/vTotal:0;
+    const comp = syScore*0.45+labScore*0.35+vScore*0.20;
+    if(comp>0.15||syOvlp.length>=2) matches.push({diseaseId:d.id,diseaseName:d.name,type:d.type,compositeScore:+comp.toFixed(3),icdCode:d.icd,symptomOverlap:syOvlp,qp:d.qp,tx:d.tx});
+  });
+  matches.sort((a,b)=>b.compositeScore-a.compositeScore);
+
+  const hasFever=v.temperatureC>=38, hasResp=v.spO2<92;
+  const hasVL=labs.viralLoad!==null&&labs.viralLoad>=1000;
+  const hasCRP=labs.cReactiveProtein!==null&&labs.cReactiveProtein>10;
+  const suddenSx=["fever","chills","rapid_breathing","shortness_of_breath","confusion"];
+  const suddenCount=suddenSx.filter(s=>sx.has(s)).length;
+  const iFlags=[];
+  if(hasFever&&hasResp) iFlags.push({type:"infectious_critical",label:"Fever + Resp Distress"});
+  if(hasFever&&suddenCount>=2) iFlags.push({type:"sudden_onset",label:"Sudden-Onset Cluster"});
+  if(hasVL) iFlags.push({type:"high_viral_load",label:"High Viral Load"});
+  if(hasCRP) iFlags.push({type:"elevated_crp",label:"Elevated CRP"});
+
+  return { patientId:patient.patientId, vitalFlags:vFlags, labFlags:lFlags, diseaseMatches:matches, infectiousFlags:{isFlagged:iFlags.length>0,flags:iFlags}, isOutbreakCandidate:iFlags.length>0, clusterHits:[] };
+}
+
+function isLabCrit(k,v){
+  const t={wbcCount:[15,2],hbA1c:[9,null],bloodGlucose:[300,50],liverAlt:[200,null],kidneyCreatinine:[3,null],cReactiveProtein:[30,null],viralLoad:[1000,null]};
+  const r=t[k]; if(!r) return false;
+  if(r[0]!==null&&v>=r[0]) return true;
+  if(r[1]!==null&&v<=r[1]) return true;
+  return false;
+}
+
+// ── Triage Classifier ───────────────────────────────────────────
+const VW = {
+  spO2:v=>v<88?40:v<90?30:v<92?20:v<94?10:0,
+  temperatureC:v=>v>=40?30:v>=39.5?20:v>=39?15:v>=38.5?10:v>=38?5:0,
+  heartRate:v=>v>=130?20:v>=120?15:v>=110?10:v>=100?5:0,
+  bloodPressureSystolic:v=>v<80?30:v<90?20:v<100?10:v>=180?20:v>=160?10:v>=140?5:0,
+};
+const LW = {
+  wbcCount:v=>v>15||v<2?15:v>12||v<3.5?8:0,
+  cReactiveProtein:v=>v>30?15:v>20?10:v>10?5:0,
+  kidneyCreatinine:v=>v>3?15:v>2?10:v>1.3?5:0,
+  hbA1c:v=>v>9?12:v>7.5?7:v>=6.5?3:0,
+  bloodGlucose:v=>v>400?15:v>300?10:v>200?5:0,
+  liverAlt:v=>v>200?10:v>100?6:v>56?3:0,
+  viralLoad:v=>v>10000?15:v>1000?8:0,
+};
+const PREMULT = {heart_failure:1.25,COPD:1.2,CKD:1.2,diabetes:1.15,hypertension:1.1,obesity:1.1,immunodeficiency:1.3,cancer:1.25};
+
+function classifyTriage(patient, eng) {
+  let score=0;
+  Object.entries(VW).forEach(([k,fn])=>{ if(patient.vitals[k]!=null) score+=fn(patient.vitals[k]); });
+  Object.entries(LW).forEach(([k,fn])=>{ if(patient.labResults[k]!=null) score+=fn(patient.labResults[k]); });
+  score += eng.vitalFlags.filter(f=>f.severity==="critical").length*10;
+  score += eng.labFlags.filter(f=>f.severity==="critical").length*8;
+  if(eng.isOutbreakCandidate) score+=15;
+  if(eng.diseaseMatches.length>0){ const d=eng.diseaseMatches[0]; score+=Math.round(d.compositeScore*20); if(d.type==="critical_infectious") score+=20; }
+  let mult=1.0;
+  patient.preExistingConditions.forEach(c=>{ const m=PREMULT[c]; if(m) mult=Math.max(mult,m); });
+  score=Math.round(score*mult);
+  if(patient.demographics.age>=70) score+=10; else if(patient.demographics.age>=60) score+=5;
+  score=Math.min(100,score);
+  const sev=score>=65?"critical":score>=35?"moderate":"low";
+  const top=eng.diseaseMatches[0]||null;
+  const actions=buildActions(sev,eng,top);
+  return { patientId:patient.patientId, severityScore:score, severity:sev, primarySuspectedDisease:top?{id:top.diseaseId,name:top.diseaseName,icdCode:top.icdCode}:null, actions, criticalVitalFlags:eng.vitalFlags.filter(f=>f.severity==="critical"), criticalLabFlags:eng.labFlags.filter(f=>f.severity==="critical") };
+}
+
+function buildActions(sev, eng, top){
+  if(sev==="critical") return {
+    immediateActions:["🚨 IMMEDIATE: Hospital / ICU triage alert dispatched","📟 Automated physician notification sent","🔴 Emergency contact activated", top?.qp?`🔒 ${top.qp}`:"🔒 Standard isolation protocol"],
+    diagnosticOrders:["CBC with differential","CMP","Blood cultures ×2","Chest X-Ray / CT", ...(eng.isOutbreakCandidate?["Respiratory PCR panel","COVID-19 NAAT test"]:[])],
+    monitoringPlan:"Continuous vitals q15min; ICU telemetry",
+    treatmentGuidance:top?.tx??"Immediate supportive care",
+    contactTracing:eng.isOutbreakCandidate, publicHealthReport:eng.isOutbreakCandidate
+  };
+  if(sev==="moderate") return {
+    immediateActions:["📅 Priority appointment within 24 hours","🧪 Diagnostic lab order generated","📊 Clinical monitoring activated", top?.qp?`ℹ️ ${top.qp}`:"ℹ️ Standard precautions"],
+    diagnosticOrders:["CBC","Basic Metabolic Panel", ...(eng.labFlags.some(f=>f.marker==="hbA1c")?["HbA1c retest","Glucose tolerance"]:[]),(eng.isOutbreakCandidate?"Respiratory PCR":"")].filter(Boolean),
+    monitoringPlan:"Vitals re-check in 6h; daily telehealth check-in",
+    treatmentGuidance:top?.tx??"Symptomatic management; review within 24h",
+    contactTracing:false, publicHealthReport:false
+  };
+  return {
+    immediateActions:["📋 Care instructions sent","📱 Daily check-in reminder scheduled","💊 OTC symptom guidance provided"],
+    diagnosticOrders:eng.labFlags.length>0?["Routine follow-up labs"]:[],
+    monitoringPlan:"Self-monitoring; escalate if symptoms worsen",
+    treatmentGuidance:top?.tx??"Rest, hydration, OTC meds; re-evaluate in 5 days",
+    contactTracing:false, publicHealthReport:false
+  };
+}
+
+// ── Epidemiology ────────────────────────────────────────────────
+const POP_MAP = {"Manhattan North":80000,"Manhattan South":65000,"Brooklyn West":90000,"Queens":120000,"Bronx":95000,"Staten Island":40000};
+
+function runRegional(patients, triages) {
+  const map={};
+  const now=new Date(), ws=new Date(now); ws.setDate(now.getDate()-14);
+  patients.forEach((p,i)=>{
+    const t=triages[i], r=p.demographics.region, dt=new Date(p.symptoms.onsetDate);
+    if(dt<ws) return;
+    if(!map[r]) map[r]={regionId:r,zipCodes:new Set(),totalCases:0,casesByDay:{},severityCounts:{critical:0,moderate:0,low:0},outbreakCandidates:0,patients:[]};
+    const m=map[r];
+    m.zipCodes.add(p.demographics.zipCode);
+    m.totalCases++;
+    m.severityCounts[t.severity]++;
+    if(t.actions.contactTracing||t.actions.publicHealthReport) m.outbreakCandidates++;
+    const dk=p.symptoms.onsetDate.split("T")[0];
+    m.casesByDay[dk]=(m.casesByDay[dk]||0)+1;
+    m.patients.push({patientId:p.patientId,severity:t.severity,score:t.severityScore});
+  });
+  return Object.values(map).map(rd=>{
+    rd.zipCodes=Array.from(rd.zipCodes);
+    const vel=calcVelocity(rd.casesByDay);
+    const pop=POP_MAP[rd.regionId]||50000;
+    const ir=(rd.totalCases/pop)*100000;
+    const iS=ir>=500?30:ir>=200?22:ir>=100?16:ir>=50?10:ir>=20?5:Math.round((ir/20)*5);
+    const vr=vel.velocityRatio;
+    const vS=vr>=3?40:vr>=2?30:vr>=1.5?22:vr>=1.2?15:vr>=1?8:Math.max(0,Math.round((vr/1)*8));
+    const cpct=rd.totalCases>0?rd.severityCounts.critical/rd.totalCases:0;
+    const sS=cpct>=0.5?30:cpct>=0.35?22:cpct>=0.2?15:cpct>=0.1?8:Math.round(cpct*80);
+    const rs=Math.min(100,iS+vS+sS);
+    const rl=rs>=70?"HIGH":rs>=40?"MODERATE":"LOW";
+    const triggered=rs>=70;
+    const cActions=triggered?buildContainment(rd.regionId,rs,rd):[];
+    return {...rd,riskScore:rs,riskLevel:rl,velocity:vel,criticalCasePct:+(cpct*100).toFixed(1),outbreakTriggered:triggered,containmentActions:cActions};
+  }).sort((a,b)=>b.riskScore-a.riskScore);
+}
+
+function calcVelocity(cbd){
+  const now=new Date(); let l7=0,p7=0;
+  Object.entries(cbd).forEach(([d,c])=>{ const days=Math.floor((now-new Date(d))/(86400000)); if(days<7) l7+=c; else if(days<14) p7+=c; });
+  const vr=p7===0?(l7>0?3:1):+(l7/p7).toFixed(3);
+  const trend=vr>1.5?"surging":vr>1.1?"rising":vr<0.7?"declining":"stable";
+  return {last7:l7,prior7:p7,velocityRatio:vr,trend};
+}
+
+function buildContainment(rid,rs,rd){
+  const acts=[
+    {type:"public_health_alert",label:"🚨 Public Health Alert Issued",detail:`Risk score ${rs}/100 — Region: ${rid}`,priority:"IMMEDIATE"},
+    {type:"clinic_flag",label:"🏥 Local Clinic Network Flagged",detail:`Clinics in ${rid} (ZIP: ${rd.zipCodes.join(", ")}) on outbreak watch`,priority:"IMMEDIATE"},
+    {type:"contact_tracing",label:"🔍 Contact-Tracing Workflow Initiated",detail:`${rd.outbreakCandidates} high-risk patients flagged for contact investigation`,priority:"URGENT"},
+    {type:"supply_prepositioning",label:"📦 Medical Supply Pre-Positioning",detail:`PPE & treatment supplies flagged for ${rid}`,priority:"HIGH"},
+  ];
+  if(rs>=85) acts.push({type:"mass_notification",label:"📢 Community Mass Notification",detail:"Risk ≥85 — Community advisory broadcast",priority:"IMMEDIATE"});
+  return acts;
+}
+
+// ── Pipeline helper — (re)builds all derived arrays in-place ─────
+function runPipeline() {
+  ENGINE_RESULTS.length = 0;
+  TRIAGE_RESULTS.length = 0;
+  REGIONAL.length       = 0;
+  GCP_RESULTS.length    = 0;
+  PATIENTS.forEach((p, i) => {
+    ENGINE_RESULTS[i] = engineEval(p);
+    TRIAGE_RESULTS[i] = classifyTriage(p, ENGINE_RESULTS[i]);
+  });
+  runRegional(PATIENTS, TRIAGE_RESULTS).forEach(r => REGIONAL.push(r));
+  PATIENTS.forEach((p, i) => {
+    GCP_RESULTS[i] = classifyGCP(p, TRIAGE_RESULTS[i], ENGINE_RESULTS[i]);
+  });
+}
+
+// ── ICD frequency ───────────────────────────────────────────────
+function icdFreq(){
+  const f={};
+  TRIAGE_RESULTS.forEach(t=>{ if(t.primarySuspectedDisease){ const c=t.primarySuspectedDisease.icdCode; if(!f[c]) f[c]={icdCode:c,name:t.primarySuspectedDisease.name,count:0}; f[c].count++; } });
+  return Object.values(f).sort((a,b)=>b.count-a.count);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  RENDER FUNCTIONS
+// ════════════════════════════════════════════════════════════════
+
+function showPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  el.classList.add('active');
+}
+
+function badgeHtml(sev){
+  return `<span class="badge badge-${sev}">${sev==="critical"?"🔴 Critical":sev==="moderate"?"🟡 Moderate":"🟢 Low Risk"}</span>`;
+}
+
+function scoreBarHtml(score,sev){
+  return `<div class="score-bar"><div class="score-bar-track"><div class="score-bar-fill fill-${sev}" style="width:${score}%"></div></div><span style="font-size:12px;font-weight:700">${score}</span></div>`;
+}
+
+// Dashboard
+function renderDashboard(){
+  const crit = TRIAGE_RESULTS.filter(t=>t.severity==="critical").length;
+  const mod  = TRIAGE_RESULTS.filter(t=>t.severity==="moderate").length;
+  const low  = TRIAGE_RESULTS.filter(t=>t.severity==="low").length;
+  const obReg = REGIONAL.filter(r=>r.outbreakTriggered).length;
+  const highZones = REGIONAL.filter(r=>r.riskScore>=40).length;
+
+  document.getElementById('kpi-total').textContent    = PATIENTS.length;
+  document.getElementById('kpi-critical').textContent = crit;
+  document.getElementById('kpi-outbreaks').textContent = obReg;
+  document.getElementById('kpi-zones').textContent    = highZones;
+
+  // Severity bars
+  const total = PATIENTS.length;
+  document.getElementById('severity-bars').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px">
+      ${[["Critical","critical",crit],["Moderate","moderate",mod],["Low Risk","low",low]].map(([label,sev,count])=>`
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px">
+            <span style="font-weight:600">${label}</span>
+            <span style="color:var(--muted)">${count} patients (${total>0?Math.round(count/total*100):0}%)</span>
+          </div>
+          <div style="height:10px;background:var(--border);border-radius:5px;overflow:hidden">
+            <div style="height:100%;width:${total>0?count/total*100:0}%;background:var(--${sev});border-radius:5px"></div>
+          </div>
+        </div>`).join("")}
+    </div>`;
+
+  // ICD frequency
+  const freq = icdFreq();
+  document.getElementById('icd-freq').innerHTML = freq.length ? freq.map(f=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <div><div style="font-weight:600">${f.name}</div><div style="color:var(--muted);font-size:11px">ICD-10: ${f.icdCode}</div></div>
+      <span style="background:#eff6ff;color:var(--accent);border:1px solid #bfdbfe;padding:2px 8px;border-radius:12px;font-weight:700;font-size:12px">${f.count}</span>
+    </div>`).join("") : "<p style='color:var(--muted);font-size:12px'>No matches</p>";
+
+  // Critical alerts
+  const critPts = TRIAGE_RESULTS.map((t,i)=>({t,p:PATIENTS[i]})).filter(x=>x.t.severity==="critical");
+  document.getElementById('critical-alerts-list').innerHTML = critPts.length ? critPts.map(({t,p})=>`
+    <div class="alert-banner high">
+      <div class="alert-icon">🚨</div>
+      <div class="alert-content" style="flex:1">
+        <h4>${p.patientId} — Age ${p.demographics.age}${p.demographics.gender} — ${p.demographics.region}</h4>
+        <p>Score: <strong>${t.severityScore}/100</strong> &nbsp;|&nbsp; 
+           Dx: <strong>${t.primarySuspectedDisease?.name ?? "Under evaluation"}</strong> &nbsp;|&nbsp;
+           Flags: ${t.criticalVitalFlags.map(f=>f.label).join(", ")||"—"}</p>
+        <p style="margin-top:4px;font-size:12px"><strong>Actions:</strong> ${t.actions.immediateActions[0]}</p>
+      </div>
+      <button class="btn btn-outline" style="font-size:11px;padding:5px 10px" onclick="openModal('${p.patientId}')">View Detail</button>
+    </div>`).join("") : `<p style="color:var(--muted);font-size:13px">No critical patients at this time.</p>`;
+}
+
+// Patient Table
+function renderPatientTable(){
+  const sevF  = document.getElementById('filter-severity').value;
+  const regF  = document.getElementById('filter-region').value;
+
+  // Populate region filter
+  const regions = [...new Set(PATIENTS.map(p=>p.demographics.region))].sort();
+  const regSel = document.getElementById('filter-region');
+  if(regSel.options.length<=1){
+    regions.forEach(r=>{ const o=document.createElement('option'); o.value=r; o.textContent=r; regSel.appendChild(o); });
+  }
+
+  const rows = TRIAGE_RESULTS.map((t,i)=>({t,p:PATIENTS[i],e:ENGINE_RESULTS[i]}))
+    .filter(x=>(!sevF||x.t.severity===sevF)&&(!regF||x.p.demographics.region===regF))
+    .sort((a,b)=>b.t.severityScore-a.t.severityScore);
+
+  document.getElementById('patient-table-body').innerHTML = rows.map(({t,p,e})=>`
+    <tr onclick="openModal('${p.patientId}')">
+      <td style="font-weight:600;font-family:monospace">${p.patientId}</td>
+      <td>${p.demographics.age} / ${p.demographics.gender}</td>
+      <td>${p.demographics.region}</td>
+      <td>${p.symptoms.onsetDate}</td>
+      <td>${badgeHtml(t.severity)}</td>
+      <td>${scoreBarHtml(t.severityScore,t.severity)}</td>
+      <td style="font-size:12px">${t.primarySuspectedDisease?.name??'<span style="color:var(--muted)">Under eval.</span>'}</td>
+      <td style="text-align:center">${e.isOutbreakCandidate?'<span style="color:var(--critical);font-weight:700">⚠ YES</span>':'<span style="color:var(--muted)">—</span>'}</td>
+      <td><button class="btn btn-outline" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();openModal('${p.patientId}')">Detail</button></td>
+    </tr>`).join("");
+}
+
+// Heatmap
+function renderHeatmap(){
+  document.getElementById('heatmap-grid').innerHTML = REGIONAL.map(r=>`
+    <div class="heat-card ${r.riskLevel}">
+      <div class="heat-region">${r.regionId}</div>
+      <div class="heat-score">${r.riskScore}</div>
+      <div class="heat-meta">${r.totalCases} cases &nbsp;|&nbsp; ${r.criticalCasePct}% critical</div>
+      <div class="heat-trend trend-${r.velocity.trend}">&#8599; ${r.velocity.trend.toUpperCase()} (×${r.velocity.velocityRatio})</div>
+      ${r.outbreakTriggered?'<div style="font-size:10px;font-weight:700;color:var(--critical);margin-top:4px">🚨 OUTBREAK TRIGGERED</div>':''}
+    </div>`).join("");
+
+  document.getElementById('regional-table-body').innerHTML = REGIONAL.map(r=>`
+    <tr>
+      <td style="font-weight:600">${r.regionId}</td>
+      <td style="font-size:12px;color:var(--muted)">${r.zipCodes.join(", ")}</td>
+      <td>${r.totalCases}</td>
+      <td>${r.criticalCasePct}%</td>
+      <td><span class="trend-${r.velocity.trend}" style="font-weight:600">${r.velocity.trend}</span></td>
+      <td>${r.velocity.velocityRatio}×</td>
+      <td>${scoreBarHtml(r.riskScore, r.riskLevel==="HIGH"?"critical":r.riskLevel==="MODERATE"?"moderate":"low")}</td>
+      <td>${r.riskLevel==="HIGH"?'<span class="badge badge-critical">HIGH</span>':r.riskLevel==="MODERATE"?'<span class="badge badge-moderate">MODERATE</span>':'<span class="badge badge-low">LOW</span>'}</td>
+    </tr>`).join("");
+}
+
+// Containment Alerts
+function renderContainmentAlerts(){
+  const triggered = REGIONAL.filter(r=>r.outbreakTriggered);
+  const el = document.getElementById('containment-alerts-body');
+  if(!triggered.length){
+    el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted)"><div style="font-size:36px">✅</div><p style="margin-top:8px;font-weight:600">No active outbreak triggers at this time</p><p style="font-size:12px">All regions below outbreak threshold (70)</p></div>`;
+    return;
+  }
+  el.innerHTML = triggered.map(r=>`
+    <div class="panel" style="margin-bottom:20px">
+      <div class="panel-header" style="background:var(--critical-bg)">
+        <span class="panel-title" style="color:var(--critical)">🚨 OUTBREAK TRIGGERED — ${r.regionId} &nbsp; Score: ${r.riskScore}/100</span>
+        <span class="badge badge-critical">${r.riskLevel}</span>
+      </div>
+      <div class="panel-body">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:600">Total Cases</div>
+            <div style="font-size:22px;font-weight:800">${r.totalCases}</div>
+          </div>
+          <div style="background:var(--critical-bg);border:1px solid var(--critical-border);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:600">Critical Cases</div>
+            <div style="font-size:22px;font-weight:800;color:var(--critical)">${r.severityCounts.critical}</div>
+          </div>
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:600">Growth Velocity</div>
+            <div style="font-size:22px;font-weight:800;color:var(--moderate)">${r.velocity.velocityRatio}×</div>
+          </div>
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:600">ZIP Codes</div>
+            <div style="font-size:14px;font-weight:700;margin-top:4px">${r.zipCodes.join(", ")}</div>
+          </div>
+        </div>
+        <h4 style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Automated Containment Actions</h4>
+        ${r.containmentActions.map(a=>`
+          <div class="alert-banner ${a.priority==="IMMEDIATE"?"high":"medium"}" style="margin-bottom:8px">
+            <div class="alert-content">
+              <h4>${a.label} <span style="font-size:10px;background:#fee2e2;color:var(--critical);padding:1px 6px;border-radius:10px;margin-left:6px">${a.priority}</span></h4>
+              <p>${a.detail}</p>
+            </div>
+          </div>`).join("")}
+      </div>
+    </div>`).join("");
+}
+
+// Reports
+function renderReports(){
+  const crit = TRIAGE_RESULTS.filter(t=>t.severity==="critical").length;
+  const mod  = TRIAGE_RESULTS.filter(t=>t.severity==="moderate").length;
+  const low  = TRIAGE_RESULTS.filter(t=>t.severity==="low").length;
+  const ob   = REGIONAL.filter(r=>r.outbreakTriggered);
+
+  document.getElementById('epi-summary-body').innerHTML = `
+    <div class="report-card">
+      <div class="report-row"><span class="report-key">Report Type</span><span>Public Health Epidemiological Export</span></div>
+      <div class="report-row"><span class="report-key">Reporting Period</span><span>Trailing 14 Days</span></div>
+      <div class="report-row"><span class="report-key">Generated</span><span>${new Date().toLocaleString()}</span></div>
+      <div class="report-row"><span class="report-key">Total Monitored Patients</span><span style="font-weight:700">${PATIENTS.length}</span></div>
+      <div class="report-row"><span class="report-key">Critical Cases</span><span style="color:var(--critical);font-weight:700">${crit}</span></div>
+      <div class="report-row"><span class="report-key">Moderate Cases</span><span style="color:var(--moderate);font-weight:700">${mod}</span></div>
+      <div class="report-row"><span class="report-key">Low Risk Cases</span><span style="color:var(--low);font-weight:700">${low}</span></div>
+      <div class="report-row"><span class="report-key">Active Outbreak Regions</span><span style="color:var(--critical);font-weight:700">${ob.length}</span></div>
+      <div class="report-row"><span class="report-key">Outbreak Region Names</span><span>${ob.map(r=>r.regionId).join(", ")||"None"}</span></div>
+    </div>`;
+
+  const freq = icdFreq();
+  document.getElementById('icd-report-body').innerHTML = `
+    <div class="report-card">
+      ${freq.map(f=>`<div class="report-row"><span class="report-key">${f.icdCode} — ${f.name}</span><span style="font-weight:700">${f.count} case${f.count>1?"s":""}</span></div>`).join("")}
+    </div>`;
+
+  const allActions = ob.flatMap(r=>r.containmentActions.map(a=>({region:r.regionId,...a})));
+  document.getElementById('containment-log-body').innerHTML = allActions.length ? `
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Region</th><th>Action Type</th><th>Label</th><th>Detail</th><th>Priority</th></tr></thead>
+        <tbody>${allActions.map(a=>`
+          <tr>
+            <td style="font-weight:600">${a.region}</td>
+            <td style="font-family:monospace;font-size:11px">${a.type}</td>
+            <td>${a.label}</td>
+            <td style="font-size:12px;color:var(--muted)">${a.detail}</td>
+            <td><span class="badge ${a.priority==="IMMEDIATE"?"badge-critical":a.priority==="URGENT"?"badge-moderate":"badge-low"}">${a.priority}</span></td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+    </div>` : `<p style="color:var(--muted);font-size:13px">No active containment workflows.</p>`;
+}
+
+// Patient Detail Modal
+function openModal(pid){
+  const idx = PATIENTS.findIndex(p=>p.patientId===pid);
+  if(idx===-1) return;
+  const p=PATIENTS[idx], e=ENGINE_RESULTS[idx], t=TRIAGE_RESULTS[idx];
+
+  const vitalFlagSet = new Set(e.vitalFlags.filter(f=>f.severity==="critical").map(f=>f.flag));
+  const isCritV = (flag)=>vitalFlagSet.has(flag);
+
+  document.getElementById('modal-title').textContent = `${pid} — ${t.severityLabel ?? t.severity.toUpperCase()}`;
+  document.getElementById('modal-body').innerHTML = `
+    <!-- Severity Banner -->
+    <div style="background:${t.severity==="critical"?"var(--critical-bg)":t.severity==="moderate"?"var(--moderate-bg)":"var(--low-bg)"};border:1px solid ${t.severity==="critical"?"var(--critical-border)":t.severity==="moderate"?"var(--moderate-border)":"var(--low-border)"};border-radius:8px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        ${badgeHtml(t.severity)}
+        <span style="margin-left:12px;font-weight:700;font-size:16px">Score: ${t.severityScore}/100</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted)">
+        Age ${p.demographics.age} / ${p.demographics.gender} &nbsp;|&nbsp; ${p.demographics.region} (${p.demographics.zipCode})<br>
+        ${p.preExistingConditions.length?`Pre-existing: ${p.preExistingConditions.join(", ")}`:"No pre-existing conditions"}
+      </div>
+    </div>
+
+    <!-- Vitals -->
+    <div class="modal-section">
+      <h3>Vital Signs</h3>
+      <div class="vitals-grid">
+        <div class="vital-box ${p.vitals.temperatureC>=39?"flagged":""}"><div class="vital-label">Temperature</div><div class="vital-value">${p.vitals.temperatureC}°C</div><div style="font-size:10px;color:var(--muted)">${p.vitals.temperatureF}°F</div></div>
+        <div class="vital-box ${p.vitals.spO2<92?"flagged":""}"><div class="vital-label">SpO₂</div><div class="vital-value">${p.vitals.spO2}%</div></div>
+        <div class="vital-box ${p.vitals.heartRate>=120?"flagged":""}"><div class="vital-label">Heart Rate</div><div class="vital-value">${p.vitals.heartRate} <span style="font-size:12px;font-weight:400">bpm</span></div></div>
+        <div class="vital-box ${p.vitals.bloodPressureSystolic<90||p.vitals.bloodPressureSystolic>=180?"flagged":""}"><div class="vital-label">Blood Pressure</div><div class="vital-value">${p.vitals.bloodPressureSystolic}/${p.vitals.bloodPressureDiastolic}</div><div style="font-size:10px;color:var(--muted)">mmHg</div></div>
+      </div>
+    </div>
+
+    <!-- Reported Symptoms -->
+    <div class="modal-section">
+      <h3>Reported Symptoms — Onset: ${p.symptoms.onsetDate}</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${p.symptoms.reported.map(s=>`<span style="background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:12px">${s.replace(/_/g," ")}</span>`).join("")}</div>
+    </div>
+
+    <!-- Rule Engine Flags -->
+    ${(e.vitalFlags.length||e.labFlags.length)?`
+    <div class="modal-section">
+      <h3>Rules Engine Flags</h3>
+      <ul class="flag-list">
+        ${[...e.vitalFlags,...e.labFlags].map(f=>`
+          <li class="flag-item ${f.severity}">
+            <div><span class="flag-label">${f.label}</span><br><span style="font-size:11px;color:var(--muted)">${f.value??""} ${f.unit??""}</span></div>
+            <span class="flag-value badge badge-${f.severity==="critical"?"critical":"moderate"}">${f.severity.toUpperCase()}</span>
+          </li>`).join("")}
+      </ul>
+    </div>`:""}
+
+    <!-- Disease Matches -->
+    ${e.diseaseMatches.length?`
+    <div class="modal-section">
+      <h3>Differential Diagnosis Matches</h3>
+      ${e.diseaseMatches.slice(0,3).map(m=>`
+        <div class="disease-match">
+          <div style="flex:1">
+            <div style="font-weight:600">${m.diseaseName} <span style="font-size:11px;color:var(--muted);margin-left:4px">ICD-10: ${m.icdCode}</span></div>
+            <div class="match-bar" style="width:${Math.round(m.compositeScore*100)}%"></div>
+          </div>
+          <span style="font-size:12px;font-weight:700;color:var(--accent);margin-left:12px">${Math.round(m.compositeScore*100)}%</span>
+        </div>`).join("")}
+    </div>`:""}
+
+    <!-- Action Plan -->
+    <div class="modal-section">
+      <h3>Clinical Action Plan</h3>
+      <ul class="action-list">${t.actions.immediateActions.map(a=>`<li class="action-item">${a}</li>`).join("")}</ul>
+    </div>
+
+    <!-- Diagnostic Orders -->
+    ${t.actions.diagnosticOrders?.length?`
+    <div class="modal-section">
+      <h3>Diagnostic Orders</h3>
+      <div class="diag-orders">${t.actions.diagnosticOrders.map(o=>`<span class="diag-tag">&#129516; ${o}</span>`).join("")}</div>
+    </div>`:""}
+
+    <!-- Monitoring Plan -->
+    <div class="modal-section">
+      <h3>Monitoring &amp; Treatment Guidance</h3>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 14px;font-size:12px">
+        <div><strong>Monitoring:</strong> ${t.actions.monitoringPlan}</div>
+        <div style="margin-top:6px"><strong>Treatment:</strong> ${t.actions.treatmentGuidance}</div>
+      </div>
+    </div>`;
+
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal(e){ if(e.target===document.getElementById('modal-overlay')) closeModalDirect(); }
+function closeModalDirect(){ document.getElementById('modal-overlay').classList.remove('open'); }
+
+// Exports
+function exportPublicHealthReport(){
+  const ob = REGIONAL.filter(r=>r.outbreakTriggered);
+  const report = {
+    reportType:"PUBLIC_HEALTH_EPIDEMIOLOGICAL_EXPORT",
+    generatedAt:new Date().toISOString(),
+    reportingPeriod:"Trailing 14 days",
+    summary:{
+      totalMonitoredPatients:PATIENTS.length,
+      criticalCases:TRIAGE_RESULTS.filter(t=>t.severity==="critical").length,
+      moderateCases:TRIAGE_RESULTS.filter(t=>t.severity==="moderate").length,
+      lowRiskCases:TRIAGE_RESULTS.filter(t=>t.severity==="low").length,
+      activeOutbreakRegions:ob.length,
+    },
+    regionalBreakdown:REGIONAL.map(r=>({region:r.regionId,zipCodes:r.zipCodes,totalCases:r.totalCases,riskScore:r.riskScore,riskLevel:r.riskLevel,growthTrend:r.velocity.trend,velocityRatio:r.velocity.velocityRatio,criticalCasePct:r.criticalCasePct,outbreakTriggered:r.outbreakTriggered})),
+    caseSummaryLog:PATIENTS.map((p,i)=>({patientId:p.patientId,age:p.demographics.age,region:p.demographics.region,onsetDate:p.symptoms.onsetDate,severity:TRIAGE_RESULTS[i].severity,severityScore:TRIAGE_RESULTS[i].severityScore,primaryDisease:TRIAGE_RESULTS[i].primarySuspectedDisease?.name??"Undetermined",icdCode:TRIAGE_RESULTS[i].primarySuspectedDisease?.icdCode??"N/A",isOutbreakCandidate:ENGINE_RESULTS[i].isOutbreakCandidate})),
+    icdCodeFrequency:icdFreq(),
+    containmentActions:ob.flatMap(r=>r.containmentActions.map(a=>({region:r.regionId,...a}))),
+  };
+  const blob = new Blob([JSON.stringify(report,null,2)],{type:"application/json"});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a"); a.href=url; a.download="public_health_report.json"; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportPatientLog(){
+  const header = ["PatientID","Age","Gender","Region","ZIP","OnsetDate","Severity","SeverityScore","PrimaryDiagnosis","ICD10","IsOutbreakCandidate","ContactTracing","CriticalVitalFlags","CriticalLabFlags"].join(",");
+  const rows = PATIENTS.map((p,i)=>{
+    const t=TRIAGE_RESULTS[i], e=ENGINE_RESULTS[i];
+    return [p.patientId,p.demographics.age,p.demographics.gender,`"${p.demographics.region}"`,p.demographics.zipCode,p.symptoms.onsetDate,t.severity,t.severityScore,`"${t.primarySuspectedDisease?.name??"Undetermined"}"`,t.primarySuspectedDisease?.icdCode??"N/A",e.isOutbreakCandidate,t.actions.contactTracing,`"${t.criticalVitalFlags.map(f=>f.label).join("; ")}"`,`"${t.criticalLabFlags.map(f=>f.label).join("; ")}"`].join(",");
+  });
+  const csv = [header,...rows].join("\n");
+  const blob = new Blob([csv],{type:"text/csv"});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a"); a.href=url; a.download="patient_case_log.csv"; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Clock
+function updateClock(){ document.getElementById('clock').textContent = new Date().toLocaleTimeString(); }
+setInterval(updateClock,1000); updateClock();
+
+// ════════════════════════════════════════════════════════════════
+//  ICH E6 GCP SEVERITY CLASSIFIER
+// ════════════════════════════════════════════════════════════════
+
+function classifyGCP(patient, triage, engine) {
+  const v=patient.vitals, sev=triage.severity, score=triage.severityScore;
+  const critVitals=triage.criticalVitalFlags.length, critLabs=triage.criticalLabFlags.length;
+  const hasSepsis=engine.diseaseMatches.some(m=>m.diseaseId==="sepsis");
+  if(score>=95||(v.spO2<85&&v.bloodPressureSystolic<80))
+    return gcpResult(5,"Death / Fatal Risk","Immediate threat to life — full regulatory investigation required","Within 24 hours",patient,triage,engine);
+  if(score>=75||(v.spO2<90&&hasSepsis)||critVitals>=3)
+    return gcpResult(4,"Life-Threatening (SAE)","Urgent medical intervention required — SAE mandatory report to IRB/Ethics","Within 7 days",patient,triage,engine);
+  if(score>=55||sev==="critical"||(critVitals>=2&&critLabs>=1))
+    return gcpResult(3,"Severe AE","Hospitalization or prolongation required — expedited IND safety report","Within 15 days",patient,triage,engine);
+  if(score>=30||sev==="moderate"||critVitals>=1||critLabs>=1)
+    return gcpResult(2,"Moderate AE","Limits daily activity; physician review required — document &amp; track","Within 7 days (routine)",patient,triage,engine);
+  return gcpResult(1,"Mild / No AE","Transient, self-limiting — document in source data","Per scheduled visit",patient,triage,engine);
+}
+
+function gcpResult(grade,label,definition,timeline,patient,triage,engine){
+  const reportingObligation=grade>=4?"SAE — Mandatory Expedited Report":grade===3?"AE — Expedited Report (IND)":grade===2?"AE — Scheduled Report":"Source Document Only";
+  const saeFlag=grade>=4;
+  const autonote=grade>=4?`Sponsor/IRB notification required within ${timeline}. CAPA investigation mandatory.`:grade===3?`Prepare ICSR. Site notification to PI required.`:`Document in CRF. Review at next monitoring visit.`;
+  const gcpCriteria=[
+    {criterion:"Requires hospitalization or prolongation",   met:triage.severity==="critical"||triage.severityScore>=55},
+    {criterion:"Results in persistent/significant disability",met:engine.diseaseMatches.some(m=>["sepsis","kidney_disease"].includes(m.diseaseId))&&triage.severityScore>=60},
+    {criterion:"Life-threatening vital compromise",          met:patient.vitals.spO2<92||patient.vitals.bloodPressureSystolic<90||patient.vitals.heartRate>=130},
+    {criterion:"Requires urgent medical/surgical intervention",met:triage.severity==="critical"},
+    {criterion:"Abnormal laboratory values (CTCAE Grade ≥2)",met:triage.criticalLabFlags.length>0},
+    {criterion:"Medically important condition per investigator",met:triage.severityScore>=35},
+    {criterion:"Congenital anomaly / birth defect",          met:false},
+    {criterion:"Death (Grade 5 criteria)",                   met:triage.severityScore>=95},
+  ];
+  return {grade,label,definition,timeline,reportingObligation,saeFlag,autonote,gcpCriteria,patientId:patient.patientId,severity:triage.severity,severityScore:triage.severityScore};
+}
+
+
+function renderGCP(){
+  const grades=GCP_RESULTS.map(g=>g.grade);
+  document.getElementById('gcp-kpi-sae').textContent=grades.filter(g=>g>=4).length;
+  document.getElementById('gcp-kpi-g3').textContent=grades.filter(g=>g===3).length;
+  document.getElementById('gcp-kpi-g2').textContent=grades.filter(g=>g===2).length;
+  document.getElementById('gcp-kpi-g1').textContent=grades.filter(g=>g<=1).length;
+  document.getElementById('gcp-patient-body').innerHTML=GCP_RESULTS.slice().sort((a,b)=>b.grade-a.grade).map(g=>`
+    <div class="ich-card" style="border-left:4px solid ${g.grade>=4?"var(--purple)":g.grade===3?"var(--critical)":g.grade===2?"var(--moderate)":"var(--low)"}">
+      <div class="ich-card-header">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span class="badge ich-grade-${g.grade}" style="font-size:12px;padding:4px 12px">Grade ${g.grade} — ${g.label}</span>
+          <span style="font-family:monospace;font-weight:700;font-size:13px">${g.patientId}</span>
+          ${g.saeFlag?'<span class="badge badge-critical" style="font-size:10px">SAE</span>':''}
+        </div>
+        <div style="font-size:11px;color:var(--muted)">Score: ${g.severityScore}/100 &nbsp;|&nbsp; Report: <strong>${g.timeline}</strong></div>
+      </div>
+      <div class="ich-card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <div style="font-weight:700;font-size:11px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">CTCAE Criteria</div>
+            <ul class="criteria-list">${g.gcpCriteria.map(c=>`<li class="criteria-item"><span class="${c.met?"criteria-met":"criteria-not-met"}">${c.met?"✔":"○"}</span><span style="color:${c.met?"var(--text)":"var(--muted)"}">${c.criterion}</span></li>`).join("")}</ul>
+          </div>
+          <div>
+            <div style="font-weight:700;font-size:11px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Regulatory Obligation</div>
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:12px;margin-bottom:8px">
+              <div><strong>Obligation:</strong> ${g.reportingObligation}</div>
+              <div style="margin-top:4px"><strong>Definition:</strong> ${g.definition}</div>
+            </div>
+            <div style="background:${g.grade>=4?"var(--critical-bg)":g.grade===3?"#fff7ed":"var(--surface2)"};border:1px solid ${g.grade>=4?"var(--critical-border)":g.grade===3?"#fed7aa":"var(--border)"};border-radius:6px;padding:8px 10px;font-size:11px;color:var(--muted)">
+              &#9432; ${g.autonote}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`).join("");
+}
+
+// ════════════════════════════════════════════════════════════════
+//  CAPA MODULE — ICH E6 §8 Audit-Ready
+// ════════════════════════════════════════════════════════════════
+
+let CAPA_LIST=[]; let AUDIT_LOG=[]; let _capaSeq=1;
+
+function auditLog(eventType,detail,user="System"){
+  AUDIT_LOG.unshift({ts:new Date().toISOString(),user,eventType,detail});
+  if(document.getElementById('audit-trail-body')) renderAuditTrail();
+}
+
+function seedCapas(){
+  const today=new Date();
+  PATIENTS.forEach((p,i)=>{
+    const t=TRIAGE_RESULTS[i],g=GCP_RESULTS[i];
+    if(t.severity==="critical"||g.grade>=3){
+      const due=new Date(today); due.setDate(today.getDate()+(g.grade>=4?2:7));
+      const status=g.grade>=4?"open":"in_progress";
+      CAPA_LIST.push({
+        id:`CAPA-${String(_capaSeq++).padStart(4,"0")}`,type:g.grade>=4?"adverse_event":"corrective",
+        patientId:p.patientId,
+        description:`${g.label}: ${t.primarySuspectedDisease?.name??"Undetermined"} — Score ${t.severityScore}/100. ${g.autonote}`,
+        rootCause:t.criticalVitalFlags.map(f=>f.label).join("; ")||"Vital sign threshold exceeded",
+        owner:"Clinical Lead",dueDate:due.toISOString().split("T")[0],status,gcpGrade:g.grade,
+        raisedAt:new Date().toISOString(),
+        timeline:[{ts:new Date().toISOString(),action:"CAPA raised — auto-generated from triage severity",user:"System"},
+          ...(status==="in_progress"?[{ts:new Date().toISOString(),action:"Assigned to Clinical Lead",user:"System"}]:[])],
+      });
+      auditLog("CAPA_RAISED",`${CAPA_LIST[CAPA_LIST.length-1].id} raised for ${p.patientId} (GCP Grade ${g.grade})`,"System");
+    }
+  });
+}
+
+function addCapa(){
+  const type=document.getElementById("capa-type").value;
+  const pid=document.getElementById("capa-pid").value.trim();
+  const due=document.getElementById("capa-due").value;
+  const desc=document.getElementById("capa-desc").value.trim();
+  const cause=document.getElementById("capa-cause").value.trim();
+  const owner=document.getElementById("capa-owner").value.trim();
+  const errEl=document.getElementById("capa-err");
+  if(!desc){errEl.textContent="Description is required.";return;}
+  if(!due){errEl.textContent="Due date is required.";return;}
+  errEl.textContent="";
+  const today=new Date().toISOString().split("T")[0];
+  const status=due<today?"overdue":"open";
+  const capa={id:`CAPA-${String(_capaSeq++).padStart(4,"0")}`,type,patientId:pid||"N/A",
+    description:desc,rootCause:cause||"Under investigation",owner:owner||"Unassigned",
+    dueDate:due,status,gcpGrade:null,raisedAt:new Date().toISOString(),
+    timeline:[{ts:new Date().toISOString(),action:"CAPA raised manually",user:"User"}]};
+  CAPA_LIST.unshift(capa);
+  auditLog("CAPA_RAISED",`${capa.id} raised manually — type:${type}, patient:${pid||"N/A"}`,"User");
+  renderCapa(); showToast(`✅ ${capa.id} raised successfully`,"success");
+  ["capa-desc","capa-pid","capa-cause","capa-owner","capa-due"].forEach(id=>document.getElementById(id).value="");
+}
+
+function updateCapaStatus(id,newStatus){
+  const capa=CAPA_LIST.find(c=>c.id===id); if(!capa) return;
+  const old=capa.status; capa.status=newStatus;
+  capa.timeline.push({ts:new Date().toISOString(),action:`Status changed: ${old} → ${newStatus}`,user:"User"});
+  auditLog("CAPA_STATUS_CHANGE",`${id}: ${old} → ${newStatus}`,"User");
+  renderCapa(); showToast(`${id} → ${newStatus}`,"success");
+}
+
+function renderCapa(){
+  const filter=document.getElementById("capa-filter")?.value||"";
+  const today=new Date().toISOString().split("T")[0];
+  CAPA_LIST.forEach(c=>{if(c.status!=="closed"&&c.dueDate<today)c.status="overdue";});
+  document.getElementById("capa-kpi-open").textContent   =CAPA_LIST.filter(c=>c.status==="open").length;
+  document.getElementById("capa-kpi-prog").textContent   =CAPA_LIST.filter(c=>c.status==="in_progress").length;
+  document.getElementById("capa-kpi-closed").textContent =CAPA_LIST.filter(c=>c.status==="closed").length;
+  document.getElementById("capa-kpi-overdue").textContent=CAPA_LIST.filter(c=>c.status==="overdue").length;
+  const filtered=filter?CAPA_LIST.filter(c=>c.status===filter):CAPA_LIST;
+  const typeL={corrective:"Corrective",preventive:"Preventive",deviation:"Deviation",adverse_event:"Adverse Event",near_miss:"Near Miss"};
+  const stBadge={open:"capa-status-open",in_progress:"capa-status-progress",closed:"capa-status-closed",overdue:"capa-status-overdue"};
+  document.getElementById("capa-registry-body").innerHTML=filtered.length?filtered.map(c=>`
+    <div class="capa-card ${c.status}">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+            <span style="font-weight:700;font-family:monospace">${c.id}</span>
+            <span class="badge ${stBadge[c.status]}">${c.status.replace("_"," ").toUpperCase()}</span>
+            <span class="gcp-tag" style="background:#eff6ff;color:var(--accent)">${typeL[c.type]||c.type}</span>
+            ${c.gcpGrade?`<span class="badge ich-grade-${c.gcpGrade}">GCP Grade ${c.gcpGrade}</span>`:""}
+          </div>
+          <div class="capa-meta">
+            <span>Patient: <strong>${c.patientId}</strong></span>
+            <span>Owner: ${c.owner}</span>
+            <span>Due: <strong style="color:${c.dueDate<today&&c.status!=="closed"?"var(--critical)":"inherit"}">${c.dueDate}</strong></span>
+            <span>Raised: ${new Date(c.raisedAt).toLocaleDateString()}</span>
+          </div>
+          <div style="margin-top:8px;font-size:12px">${c.description}</div>
+          <div style="margin-top:4px;font-size:11px;color:var(--muted)"><strong>Root Cause:</strong> ${c.rootCause}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
+          ${c.status!=="closed"?`<button class="btn btn-outline" style="font-size:11px;padding:4px 8px" onclick="updateCapaStatus('${c.id}','in_progress')">In Progress</button>`:""}
+          ${c.status!=="closed"?`<button class="btn btn-outline" style="font-size:11px;padding:4px 8px;color:var(--low);border-color:var(--low)" onclick="updateCapaStatus('${c.id}','closed')">✓ Close</button>`:""}
+        </div>
+      </div>
+      <details style="margin-top:10px">
+        <summary style="font-size:11px;color:var(--muted);cursor:pointer;font-weight:600">View Timeline</summary>
+        <div class="capa-timeline" style="margin-top:8px">${c.timeline.map(ev=>`<div class="capa-event"><strong>${new Date(ev.ts).toLocaleString()}</strong> — ${ev.user}: ${ev.action}</div>`).join("")}</div>
+      </details>
+    </div>`).join(""):`<p style="color:var(--muted);font-size:13px">No CAPAs matching filter.</p>`;
+}
+
+function renderAuditTrail(){
+  document.getElementById("audit-trail-body").innerHTML=AUDIT_LOG.slice(0,60).map(e=>`
+    <div class="audit-trail-row">
+      <span style="color:var(--muted)">${new Date(e.ts).toLocaleString()}</span>
+      <span style="font-weight:600">${e.user}</span>
+      <span class="gcp-tag" style="background:#eff6ff;color:var(--accent)">${e.eventType}</span>
+      <span>${e.detail}</span>
+    </div>`).join("");
+}
+
+function exportCapa(){
+  const header=["ID","Type","PatientID","Description","RootCause","Owner","DueDate","Status","GCPGrade","RaisedAt"].join(",");
+  const rows=CAPA_LIST.map(c=>[c.id,c.type,c.patientId,`"${c.description}"`,`"${c.rootCause}"`,c.owner,c.dueDate,c.status,c.gcpGrade??"N/A",c.raisedAt].join(","));
+  const blob=new Blob([[header,...rows].join("\n")],{type:"text/csv"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download="capa_log.csv"; a.click();
+  URL.revokeObjectURL(url);
+  auditLog("EXPORT","CAPA log exported to CSV","User");
+}
+
+// ════════════════════════════════════════════════════════════════
+//  HOSPITAL REMINDER SCHEDULER
+//  −1 day pre-admission  |  +2 day post-treatment
+// ════════════════════════════════════════════════════════════════
+
+let REMINDERS=[]; let _remSeq=1;
+const REM_LABELS={pre_admission:"Pre-Admission (−1 day)",admission:"Admission Day",post_treatment:"Post-Treatment (+2 days)",lab_followup:"Lab Follow-Up",medication_review:"Medication Review",custom:"Custom"};
+const REM_ICONS={pre_admission:"📋",admission:"🏥",post_treatment:"🔁",lab_followup:"🧪",medication_review:"💊",custom:"📅"};
+
+function computeReminderStatus(scheduledDate,now){
+  const today=new Date(now); today.setHours(0,0,0,0);
+  const sched=new Date(scheduledDate); sched.setHours(0,0,0,0);
+  const diff=Math.floor((sched-today)/86400000);
+  if(diff<-1) return "sent";
+  if(diff<=0) return "pending";
+  return "scheduled";
+}
+
+function seedReminders(){
+  const now=new Date();
+  PATIENTS.forEach((p,i)=>{
+    const t=TRIAGE_RESULTS[i];
+    const onset=new Date(p.symptoms.onsetDate);
+    const hospital=p.demographics.region+" Medical Center";
+    const preDate=new Date(onset); preDate.setDate(onset.getDate()-1);
+    const postDate=new Date(onset); postDate.setDate(onset.getDate()+2);
+    if(t.severity!=="low"){
+      REMINDERS.push({
+        id:`REM-${String(_remSeq++).padStart(4,"0")}`,patientId:p.patientId,hospital,
+        type:"pre_admission",scheduledDate:preDate.toISOString().split("T")[0],
+        status:computeReminderStatus(preDate,now),
+        note:`Pre-admission alert — ${t.primarySuspectedDisease?.name??"suspected condition"}, Severity: ${t.severity.toUpperCase()} (${t.severityScore}/100). Prepare ${t.severity==="critical"?"ICU bed + physician standby":"admission slot + labs"}.`,
+        createdAt:now.toISOString(),sentAt:computeReminderStatus(preDate,now)==="sent"?preDate.toISOString():null,
+      });
+    }
+    REMINDERS.push({
+      id:`REM-${String(_remSeq++).padStart(4,"0")}`,patientId:p.patientId,hospital,
+      type:"post_treatment",scheduledDate:postDate.toISOString().split("T")[0],
+      status:computeReminderStatus(postDate,now),
+      note:`Post-treatment follow-up for ${p.patientId}. Re-check vitals & labs. ${t.actions.diagnosticOrders?.slice(0,2).join(", ")||"Routine review"}.`,
+      createdAt:now.toISOString(),sentAt:null,
+    });
+  });
+}
+
+function addReminder(){
+  const pid=document.getElementById("rem-pid").value.trim();
+  const hospital=document.getElementById("rem-hospital").value.trim();
+  const type=document.getElementById("rem-type").value;
+  const date=document.getElementById("rem-date").value;
+  const note=document.getElementById("rem-note").value.trim();
+  const errEl=document.getElementById("rem-err");
+  if(!date){errEl.textContent="Scheduled date is required.";return;}
+  errEl.textContent="";
+  const now=new Date();
+  const status=computeReminderStatus(new Date(date),now);
+  REMINDERS.unshift({id:`REM-${String(_remSeq++).padStart(4,"0")}`,patientId:pid||"Manual",
+    hospital:hospital||"Unspecified Hospital",type,scheduledDate:date,status,
+    note:note||REM_LABELS[type],createdAt:now.toISOString(),sentAt:null});
+  auditLog("REMINDER_SCHEDULED",`${REMINDERS[0].id} for ${pid||"Manual"} — ${REM_LABELS[type]} on ${date}`,"User");
+  renderReminders(); showToast(`✅ Reminder scheduled for ${date}`,"success");
+  ["rem-pid","rem-hospital","rem-date","rem-note"].forEach(id=>document.getElementById(id).value="");
+}
+
+function markAllSent(){
+  let count=0;
+  REMINDERS.forEach(r=>{if(r.status==="pending"){r.status="sent";r.sentAt=new Date().toISOString();count++;}});
+  if(count>0){auditLog("REMINDER_BULK_SENT",`${count} pending reminders marked as sent`,"User");showToast(`✅ ${count} reminders marked as sent`,"success");}
+  renderReminders();
+}
+
+function markReminderSent(id){
+  const r=REMINDERS.find(x=>x.id===id); if(!r) return;
+  r.status="sent"; r.sentAt=new Date().toISOString();
+  auditLog("REMINDER_SENT",`${id} marked sent for ${r.patientId} (${r.hospital})`,"User");
+  renderReminders(); showToast(`✅ ${id} marked as sent`,"success");
+}
+
+function renderReminders(){
+  const filter=document.getElementById("rem-filter")?.value||"";
+  const now=new Date(); const today=new Date(now); today.setHours(0,0,0,0);
+  REMINDERS.forEach(r=>{if(r.status!=="sent")r.status=computeReminderStatus(new Date(r.scheduledDate),now);});
+  document.getElementById("rem-kpi-overdue").textContent =REMINDERS.filter(r=>r.status==="overdue").length;
+  document.getElementById("rem-kpi-today").textContent   =REMINDERS.filter(r=>r.status==="pending").length;
+  document.getElementById("rem-kpi-upcoming").textContent=REMINDERS.filter(r=>r.status==="scheduled").length;
+  document.getElementById("rem-kpi-total").textContent   =REMINDERS.length;
+  const stColors={pending:"var(--moderate)",sent:"var(--low)",overdue:"var(--critical)",scheduled:"var(--accent)"};
+  const stLabels={pending:"🟡 Pending",sent:"✅ Sent",overdue:"🔴 Overdue",scheduled:"🔵 Scheduled"};
+  const stBgs={pending:"var(--moderate-bg)",sent:"var(--low-bg)",overdue:"var(--critical-bg)",scheduled:"#eff6ff"};
+  const stBorders={pending:"var(--moderate-border)",sent:"var(--low-border)",overdue:"var(--critical-border)",scheduled:"#bfdbfe"};
+  const filtered=filter?REMINDERS.filter(r=>r.status===filter):[...REMINDERS].sort((a,b)=>new Date(a.scheduledDate)-new Date(b.scheduledDate));
+  document.getElementById("reminder-feed-body").innerHTML=filtered.length?filtered.map(r=>{
+    const daysAway=Math.floor((new Date(r.scheduledDate)-today)/86400000);
+    const daysLabel=daysAway===0?"Today":daysAway===1?"Tomorrow":daysAway===-1?"Yesterday":daysAway>0?`in ${daysAway} days`:`${Math.abs(daysAway)} days ago`;
+    return `<div class="reminder-card ${r.status}">
+      <div class="reminder-icon">${REM_ICONS[r.type]||"📅"}</div>
+      <div class="reminder-body">
+        <h4>${REM_LABELS[r.type]||r.type} &mdash; <span style="font-family:monospace">${r.patientId}</span>
+          <span class="badge" style="background:${stBgs[r.status]};color:${stColors[r.status]};border:1px solid ${stBorders[r.status]};margin-left:8px;font-size:10px">${stLabels[r.status]}</span>
+        </h4>
+        <p>🏥 <strong>${r.hospital}</strong> &nbsp;|&nbsp; 📅 ${r.scheduledDate} <span style="color:${daysAway<0&&r.status!=="sent"?"var(--critical)":"var(--muted)"}"> (${daysLabel})</span></p>
+        <p style="margin-top:4px">${r.note}</p>
+        ${r.sentAt?`<p style="margin-top:3px;font-size:10px;color:var(--low)">Sent: ${new Date(r.sentAt).toLocaleString()}</p>`:""}
+      </div>
+      ${r.status!=="sent"?`<button class="btn btn-outline" style="font-size:11px;padding:5px 10px;flex-shrink:0" onclick="markReminderSent('${r.id}')">Mark Sent</button>`:""}
+    </div>`;
+  }).join(""):`<p style="color:var(--muted);font-size:13px;padding:8px 0">No reminders matching filter.</p>`;
+}
+
+// ── Toast ────────────────────────────────────────────────────────
+function showToast(msg,type="success"){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.className=`toast ${type} show`;
+  setTimeout(()=>t.classList.remove("show"),3200);
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//  ADD PATIENT — form submit, reset, chip grid init
+// ════════════════════════════════════════════════════════════════
+
+const ALL_SYMPTOMS = [
+  "fever","mild_fever","high_fever_or_hypothermia","chills","fatigue","mild_fatigue",
+  "dry_cough","cough","productive_cough","shortness_of_breath","rapid_breathing",
+  "chest_pain","sore_throat","headache","mild_headache","runny_nose","body_aches",
+  "loss_of_taste","loss_of_smell","confusion","clammy_skin","rapid_heart_rate",
+  "extreme_pain","edema","decreased_urination","frequent_urination","excessive_thirst",
+  "blurred_vision","numbness_tingling","slow_healing_wounds","jaundice","abdominal_pain",
+  "nausea","dark_urine","pale_stools","easy_bruising",
+];
+
+const ALL_CONDITIONS = [
+  "hypertension","diabetes","obesity","COPD","heart_failure","CKD",
+  "prediabetes","non_alcoholic_fatty_liver","immunodeficiency","cancer",
+];
+
+function initChipGrids() {
+  const sxGrid = document.getElementById('sx-chip-grid');
+  if (sxGrid && !sxGrid.children.length) {
+    ALL_SYMPTOMS.forEach(s => {
+      const chip = document.createElement('span');
+      chip.className = 'sx-chip';
+      chip.dataset.value = s;
+      chip.textContent = s.replace(/_/g,' ');
+      chip.onclick = () => chip.classList.toggle('selected');
+      sxGrid.appendChild(chip);
+    });
+  }
+  const preGrid = document.getElementById('pre-chip-grid');
+  if (preGrid && !preGrid.children.length) {
+    ALL_CONDITIONS.forEach(c => {
+      const chip = document.createElement('span');
+      chip.className = 'sx-chip';
+      chip.dataset.value = c;
+      chip.textContent = c.replace(/_/g,' ');
+      chip.onclick = () => chip.classList.toggle('selected');
+      preGrid.appendChild(chip);
+    });
+  }
+}
+
+function resetForm() {
+  document.getElementById('add-patient-form').reset();
+  document.querySelectorAll('#sx-chip-grid .sx-chip, #pre-chip-grid .sx-chip')
+    .forEach(c => c.classList.remove('selected'));
+  document.getElementById('form-error-msg').textContent = '';
+  document.getElementById('add-result-panel').style.display = 'none';
+}
+
+function submitPatient(event) {
+  event.preventDefault();
+  const errEl = document.getElementById('form-error-msg');
+  errEl.textContent = '';
+
+  // Collect & validate required fields
+  const age    = parseInt(document.getElementById('f-age').value);
+  const gender = document.getElementById('f-gender').value;
+  const onset  = document.getElementById('f-onset').value;
+  const region = document.getElementById('f-region').value.trim();
+  const zip    = document.getElementById('f-zip').value.trim();
+  const tempC  = parseFloat(document.getElementById('f-temp').value);
+  const spo2   = parseInt(document.getElementById('f-spo2').value);
+  const hr     = parseInt(document.getElementById('f-hr').value);
+  const bpS    = parseInt(document.getElementById('f-bps').value);
+  const bpD    = parseInt(document.getElementById('f-bpd').value);
+
+  const required = [
+    [isNaN(age)||age<0||age>120, 'f-age',    'Valid age (0–120) is required.'],
+    [!gender,                    'f-gender', 'Gender is required.'],
+    [!onset,                     'f-onset',  'Onset date is required.'],
+    [!region,                    'f-region', 'Region is required.'],
+    [!zip,                       'f-zip',    'ZIP code is required.'],
+    [isNaN(tempC),               'f-temp',   'Temperature is required.'],
+    [isNaN(spo2),                'f-spo2',   'SpO\u2082 is required.'],
+    [isNaN(hr),                  'f-hr',     'Heart rate is required.'],
+    [isNaN(bpS),                 'f-bps',    'Systolic BP is required.'],
+    [isNaN(bpD),                 'f-bpd',    'Diastolic BP is required.'],
+  ];
+  for (const [bad, fieldId, msg] of required) {
+    if (bad) {
+      document.getElementById(fieldId).classList.add('err');
+      errEl.textContent = msg;
+      document.getElementById(fieldId).focus();
+      return;
+    }
+    document.getElementById(fieldId).classList.remove('err');
+  }
+
+  // Optional labs
+  const v = (id) => { const n = parseFloat(document.getElementById(id).value); return isNaN(n) ? null : n; };
+
+  // Selected symptom & pre-condition chips
+  const sx  = [...document.querySelectorAll('#sx-chip-grid .sx-chip.selected')].map(c => c.dataset.value);
+  const pre = [...document.querySelectorAll('#pre-chip-grid .sx-chip.selected')].map(c => c.dataset.value);
+
+  // Build patient record
+  const patientId = document.getElementById('f-id').value.trim() || generateId();
+  const raw = {
+    patientId, age, gender,
+    zipCode: zip, region, pre,
+    tempC, bpS, bpD, spo2, hr, onset, sx,
+    wbc: v('f-wbc'), crp: v('f-crp'), vl: v('f-vl'),
+    hba1c: v('f-hba1c'), gluc: v('f-gluc'), alt: v('f-alt'), creat: v('f-creat'),
+  };
+
+  const patient = createPatient(raw);
+  const eng     = engineEval(patient);
+  const triage  = classifyTriage(patient, eng);
+  const gcp     = classifyGCP(patient, triage, eng);
+
+  // Push into live arrays
+  PATIENTS.push(patient);
+  ENGINE_RESULTS.push(eng);
+  TRIAGE_RESULTS.push(triage);
+  GCP_RESULTS.push(gcp);
+
+  // Re-run regional analysis in-place
+  const newRegional = runRegional(PATIENTS, TRIAGE_RESULTS);
+  REGIONAL.length = 0;
+  newRegional.forEach(r => REGIONAL.push(r));
+
+  // Auto-seed CAPA for critical / high-grade patients
+  if (triage.severity === 'critical' || gcp.grade >= 3) {
+    const today = new Date();
+    const due = new Date(today); due.setDate(today.getDate() + (gcp.grade >= 4 ? 2 : 7));
+    CAPA_LIST.unshift({
+      id: `CAPA-${String(_capaSeq++).padStart(4,'0')}`,
+      type: gcp.grade >= 4 ? 'adverse_event' : 'corrective',
+      patientId: patient.patientId,
+      description: `${gcp.label}: ${triage.primarySuspectedDisease?.name ?? 'Undetermined'} — Score ${triage.severityScore}/100. ${gcp.autonote}`,
+      rootCause: triage.criticalVitalFlags.map(f => f.label).join('; ') || 'Vital threshold exceeded',
+      owner: 'Clinical Lead', dueDate: due.toISOString().split('T')[0],
+      status: gcp.grade >= 4 ? 'open' : 'in_progress', gcpGrade: gcp.grade,
+      raisedAt: new Date().toISOString(),
+      timeline: [{ ts: new Date().toISOString(), action: 'CAPA raised — auto-generated from new patient submission', user: 'System' }],
+    });
+    auditLog('CAPA_RAISED', `${CAPA_LIST[0].id} raised for ${patient.patientId} (GCP Grade ${gcp.grade})`, 'System');
+  }
+
+  // Auto-seed reminders for non-low patients
+  if (triage.severity !== 'low') {
+    const onset_d = new Date(patient.symptoms.onsetDate);
+    const preD    = new Date(onset_d); preD.setDate(onset_d.getDate() - 1);
+    const postD   = new Date(onset_d); postD.setDate(onset_d.getDate() + 2);
+    const hospital = region + ' Medical Center';
+    const now = new Date();
+    REMINDERS.unshift({
+      id: `REM-${String(_remSeq++).padStart(4,'0')}`, patientId: patient.patientId, hospital,
+      type: 'pre_admission', scheduledDate: preD.toISOString().split('T')[0],
+      status: computeReminderStatus(preD, now),
+      note: `Pre-admission alert — ${triage.primarySuspectedDisease?.name ?? 'suspected condition'}, Severity: ${triage.severity.toUpperCase()} (${triage.severityScore}/100).`,
+      createdAt: now.toISOString(), sentAt: null,
+    });
+    REMINDERS.unshift({
+      id: `REM-${String(_remSeq++).padStart(4,'0')}`, patientId: patient.patientId, hospital,
+      type: 'post_treatment', scheduledDate: postD.toISOString().split('T')[0],
+      status: computeReminderStatus(postD, now),
+      note: `Post-treatment follow-up for ${patient.patientId}. Re-check vitals & labs.`,
+      createdAt: now.toISOString(), sentAt: null,
+    });
+  }
+
+  // Re-render all pages with updated data
+  renderDashboard();
+  renderPatientTable();
+  renderHeatmap();
+  renderContainmentAlerts();
+  renderReports();
+  renderGCP();
+  renderCapa();
+  renderAuditTrail();
+  renderReminders();
+
+  // Show inline analysis result
+  const sevColor = triage.severity === 'critical' ? 'var(--critical)' : triage.severity === 'moderate' ? 'var(--moderate)' : 'var(--low)';
+  document.getElementById('add-result-body').innerHTML = `
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:12px">
+      ${badgeHtml(triage.severity)}
+      <span style="font-size:20px;font-weight:800;color:${sevColor}">${triage.severityScore}/100</span>
+      <span style="font-size:13px;color:var(--muted)">${patient.patientId} &nbsp;|&nbsp; Age ${age} / ${gender} &nbsp;|&nbsp; ${region}</span>
+    </div>
+    <div style="font-size:13px;margin-bottom:8px">
+      <strong>Primary Dx:</strong> ${triage.primarySuspectedDisease?.name ?? 'Under evaluation'}
+      ${triage.primarySuspectedDisease ? `<span style="color:var(--muted);margin-left:6px">ICD-10: ${triage.primarySuspectedDisease.icdCode}</span>` : ''}
+    </div>
+    ${eng.vitalFlags.length ? `<div style="font-size:12px;margin-bottom:6px"><strong>Vital Flags:</strong> ${eng.vitalFlags.map(f=>`<span class="badge badge-${f.severity==='critical'?'critical':'moderate'}" style="margin-right:4px">${f.label} ${f.value}</span>`).join('')}</div>` : ''}
+    <div style="font-size:12px"><strong>Immediate Action:</strong> ${triage.actions.immediateActions[0]}</div>
+    ${eng.isOutbreakCandidate ? '<div style="margin-top:8px;font-size:12px;color:var(--critical);font-weight:700">\u26a0 Outbreak candidate flagged \u2014 contact tracing initiated</div>' : ''}
+    <div style="margin-top:10px;font-size:12px;color:var(--muted)">Patient added to live monitor. All pages updated.</div>`;
+  document.getElementById('add-result-panel').style.display = 'block';
+  document.getElementById('add-result-panel').scrollIntoView({behavior:'smooth',block:'start'});
+
+  auditLog('PATIENT_ADDED', `${patient.patientId} ingested — severity: ${triage.severity} (${triage.severityScore}/100)`, 'User');
+  showToast(`\u2705 ${patient.patientId} added \u2014 ${triage.severity.toUpperCase()} (${triage.severityScore}/100)`, 'success');
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//  FETCH LAYER — async patient data with loading + error states
+// ════════════════════════════════════════════════════════════════
+
+function showLoading(on) {
+  document.getElementById('loading-overlay').classList.toggle('hidden', !on);
+  // Disable action buttons while loading so the UI is not in a partial state
+  document.querySelectorAll('.btn').forEach(b => { b.disabled = on; });
+}
+
+function showFetchError(title, detail) {
+  const banner = document.getElementById('fetch-error-banner');
+  document.getElementById('fetch-error-title').textContent  = title;
+  document.getElementById('fetch-error-detail').textContent = detail;
+  banner.classList.remove('hidden');
+}
+
+function hideFetchError() {
+  document.getElementById('fetch-error-banner').classList.add('hidden');
+}
+
+/**
+ * fetchGraphQLPatients — sends the GET_PATIENTS query to the GraphQL
+ * endpoint, validates the response, and populates the live PATIENTS array.
+ *
+ * Error surface:
+ *   • Placeholder endpoint/token   → skipped; seed fallback used instead
+ *   • Network / transport failure  → throws  → caught by bootstrapApp
+ *   • HTTP non-2xx status          → throws  → caught by bootstrapApp
+ *   • GraphQL `errors` array       → throws  → caught by bootstrapApp
+ *   • Empty / unrecognised payload → throws  → caught by bootstrapApp
+ */
+async function fetchGraphQLPatients() {
+  // ── 0. Seed fallback — skip network when endpoint is still a placeholder ──
+  if (USE_SEED_FALLBACK) {
+    PATIENTS.length = 0;
+    SEED_RAW.forEach(raw => PATIENTS.push(createPatient(raw)));
+    return; // boots the UI immediately; no network call made
+  }
+
+  // ── 1. Send POST request ────────────────────────────────────────
+  const response = await fetch(GRAPHQL_ENDPOINT, {
+    method  : "POST",
+    headers : {
+      "Content-Type"  : "application/json",
+      "Accept"        : "application/json",
+      "Authorization" : GRAPHQL_AUTH_TOKEN,
+    },
+    body: JSON.stringify({ query: GET_PATIENTS }),
+  });
+
+  // ── 2. HTTP-level error check (4xx / 5xx) ───────────────────────
+  if (!response.ok) {
+    throw new Error(
+      `HTTP ${response.status} ${response.statusText} — ${GRAPHQL_ENDPOINT}`
+    );
+  }
+
+  // ── 3. Parse JSON envelope ──────────────────────────────────────
+  const result = await response.json();
+
+  // ── 4. GraphQL application-level error check ────────────────────
+  if (Array.isArray(result.errors) && result.errors.length > 0) {
+    const messages = result.errors.map(e => e.message).join(" | ");
+    throw new Error(`GraphQL errors: ${messages}`);
+  }
+
+  // ── 5. Validate payload shape ───────────────────────────────────
+  const nodes = result?.data?.patients;
+  if (!Array.isArray(nodes) || nodes.length === 0) {
+    throw new Error(
+      "GraphQL response contained no patients (result.data.patients was empty or missing)."
+    );
+  }
+
+  // ── 6. Populate live PATIENTS array ────────────────────────────
+  PATIENTS.length = 0;
+  nodes.map(mapGraphQLRecord).forEach(raw => PATIENTS.push(createPatient(raw)));
+}
+
+/** Retry handler wired to the error banner's Retry button. */
+function retryFetch() {
+  hideFetchError();
+  bootstrapApp();
+}
+
+/**
+ * Full application bootstrap.
+ * 1. Show loading state
+ * 2. Fetch patient data
+ * 3. Run analysis pipeline
+ * 4. Seed derived data (CAPA, reminders)
+ * 5. Render all views
+ * 6. Hide loading state
+ *
+ * Any failure at steps 2–3 shows the error banner instead of crashing.
+ */
+async function bootstrapApp() {
+  showLoading(true);
+  hideFetchError();
+
+  try {
+    await fetchGraphQLPatients();
+
+    // Rebuild all derived arrays from freshly loaded patients
+    runPipeline();
+
+    // Seed CAPA + reminders (reset first so re-runs don't duplicate)
+    CAPA_LIST.length = 0;
+    AUDIT_LOG.length = 0;
+    REMINDERS.length = 0;
+    _capaSeq = 1;
+    _remSeq  = 1;
+    seedCapas();
+    seedReminders();
+
+    // Re-render every page
+    renderDashboard();
+    renderPatientTable();
+    renderHeatmap();
+    renderContainmentAlerts();
+    renderReports();
+    renderGCP();
+    renderCapa();
+    renderAuditTrail();
+    renderReminders();
+
+    auditLog('DATA_LOADED',
+      `${PATIENTS.length} patient records loaded (${USE_SEED_FALLBACK ? 'seed fallback' : 'GraphQL'})`,
+      'System');
+
+  } catch (err) {
+    console.error('[MedTrack] fetchGraphQLPatients failed:', err);
+    showFetchError(
+      'Unable to load patient data — network or server error',
+      err.message
+    );
+  } finally {
+    showLoading(false);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  initChipGrids();
+  bootstrapApp();
+});
+</script>
+</body>
+</html>

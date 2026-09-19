@@ -1,0 +1,14 @@
+{
+  "name": "disease-symptom-tracker",
+  "version": "1.0.0",
+  "description": "Enterprise-grade Disease & Symptom Tracking Platform",
+  "type": "module",
+  "main": "src/pipeline.js",
+  "scripts": {
+    "test": "node tests/integration.test.js",
+    "start": "node src/pipeline.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
